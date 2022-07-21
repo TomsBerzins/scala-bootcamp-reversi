@@ -2,7 +2,7 @@ package lv.tomsberzins.reversi.Messages.Websocket
 
 import io.circe.generic.auto._
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, HCursor}
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import lv.tomsberzins.reversi.domain.Player
 
 sealed trait Command {
@@ -28,7 +28,7 @@ object ChatInput {
 case class Invalid(action: String = "invalid-command") extends InputCommand
 
 object InputCommand {
-  implicit val decodeLobbyMessage: Decoder[InputCommand] = (c: HCursor) => {
+  implicit val decodeLobbyInputCommand: Decoder[InputCommand] = (c: HCursor) => {
     for {
       action <- c.downField("action").as[String]
     } yield action match {
@@ -41,42 +41,57 @@ object InputCommand {
         (for {
           name <- c.downField("message").as[String]
         } yield ChatInput(name)).getOrElse(Invalid())
-      case unknownAction => Invalid(unknownAction)
 
+      case unknownAction => Invalid(unknownAction)
     }
   }
 }
 
 sealed trait OutputCommand extends Command
 
-case class PlayerLeftLobby(player: Player, action: String = "player-left-lobby") extends OutputCommand with InputCommand
+case class PlayerLeftLobby(player: Player) extends OutputCommand with InputCommand
+{
+  override val action: String = "player-left-lobby"
+}
 
-case class PlayerJoinedLobby(player: Player, action: String = "player-joined-lobby") extends OutputCommand
+case class PlayerJoinedLobby(player: Player) extends OutputCommand
+{
+  override val action: String = "player-joined-lobby"
+}
 
-case class CreateGameOutput(owner: Player, players: List[Player], gameId: String, name: String, action: String = "game-created") extends OutputCommand
+case class CreateGameOutput(owner: Player, players: List[Player], gameId: String, name: String) extends OutputCommand
+{
+  override val action: String = "game-created"
+}
 
-final case class ServerMessage(message: String, action: String = "server-message") extends OutputCommand
+final case class ServerMessage(message: String) extends OutputCommand
+{
+  override val action: String = "server-message"
+}
 
-case class ChatOutput(message: String, sender: Player, action: String = "chat") extends  OutputCommand
+case class ChatOutput(message: String, sender: Player) extends  OutputCommand
+{
+  override val action: String = "chat"
+}
 
 object OutputCommand {
 
-  implicit val encodeLobbyMessage: Encoder[OutputCommand] = Encoder.instance {
-    case output @ CreateGameOutput(_, _, _, _, _) => output.asJson
-    case output @ ServerMessage(_,_) => output.asJson
-    case output @ PlayerJoinedLobby(_,_) => output.asJson
-    case output @ PlayerLeftLobby(_,_) => output.asJson
-    case output @ ChatOutput(_, _,_) => output.asJson
+  implicit val encodeLobbyOutputCommand: Encoder[OutputCommand] = Encoder.instance {
+    case output @ CreateGameOutput(_, _, _, _) => output.asJson deepMerge Json.obj("action" -> output.action.asJson)
+    case output @ ServerMessage(_) => output.asJson deepMerge Json.obj("action" -> output.action.asJson)
+    case output @ PlayerJoinedLobby(_) => output.asJson deepMerge Json.obj("action" -> output.action.asJson)
+    case output @ PlayerLeftLobby(_) => output.asJson deepMerge Json.obj("action" -> output.action.asJson)
+    case output @ ChatOutput(_, _) => output.asJson deepMerge Json.obj("action" -> output.action.asJson)
   }
 }
 
-case class LobbyError(action: String, msg: String)
+case class LobbyError(message: String)
 
 object LobbyError {
-   def apply(command: Command, message: String): LobbyError = LobbyError(command.action, message)
+   def apply(message: String): LobbyError = LobbyError(message)
 
   implicit val encodeLobbyError: Encoder[LobbyError] = Encoder.instance {
-    case bar @ LobbyError(_,_) => bar.asJson
+    case bar @ LobbyError(_) => bar.asJson
   }
 }
 

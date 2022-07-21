@@ -4,7 +4,7 @@ import cats.effect.{ConcurrentEffect, ExitCode, Timer}
 import cats.syntax.all._
 import fs2.concurrent.Topic
 import lv.tomsberzins.reversi.Messages.Websocket.{OutputCommand, ServerMessage}
-import lv.tomsberzins.reversi.Repository.{GameRepositoryInMemory, PlayerRepositoryInMemory, PlayersInLobbyRepositoryInMem}
+import lv.tomsberzins.reversi.Repository._
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.server.middleware.Logger
 
@@ -17,11 +17,12 @@ object ReversiServer {
 
     for {
       playersRepository <- PlayerRepositoryInMemory[F]
-      gamesRepository <- GameRepositoryInMemory[F]
       lobbyTopic <- Topic[F, OutputCommand](ServerMessage("Welcome")) //TODO try upgrading to fs2 v3
       lobbyPlayers <- PlayersInLobbyRepositoryInMem[F]
+      gameManagerContainer <- GameManagerRepository[F]
       httpApp = (
-        ReversiRoutes.lobbyRoutes[F](playersRepository, gamesRepository, lobbyTopic, lobbyPlayers)
+        LobbyRoutes.lobbyRoutes[F](playersRepository, gameManagerContainer, lobbyTopic, lobbyPlayers) <+>
+        ReversiRoutes.reversiRoutes[F](gameManagerContainer, playersRepository)
       ).orNotFound
 
       finalHttpApp = Logger.httpApp(true, true)(httpApp)

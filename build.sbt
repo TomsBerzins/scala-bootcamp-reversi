@@ -10,6 +10,11 @@ lazy val root = (project in file("."))
     name := "reversi",
     version := "0.0.1-SNAPSHOT",
     scalaVersion := "2.13.8",
+    scalacOptions ++= Seq(
+      "-Ymacro-annotations",
+      "-Ywarn-value-discard",
+      "-Xfatal-warnings"
+    ),
     libraryDependencies ++= Seq(
       "org.http4s"      %% "http4s-blaze-server" %  Http4sVersion,
       "org.http4s"      %% "http4s-ember-server" % Http4sVersion,
@@ -18,8 +23,11 @@ lazy val root = (project in file("."))
       "org.http4s"      %% "http4s-dsl"          % Http4sVersion,
       "io.circe"        %% "circe-generic"       % CirceVersion,
       "io.circe"        %% "circe-parser"        % CirceVersion,
-      "org.scalameta"   %% "munit"               % MunitVersion           % Test,
-      "org.typelevel"   %% "munit-cats-effect-2" % MunitCatsEffectVersion % Test,
+      "org.typelevel"   %% "cats-core"           % "2.7.0",
+      "org.typelevel"   %% "cats-effect"         % "2.5.5",
+      "org.scalatest"   %% "scalatest"           % "3.2.12" % Test,
+      "com.codecommit" %% "cats-effect-testing-scalatest" % "0.5.4" % Test,
+      "org.scalatestplus" %% "mockito-4-5" % "3.2.12.0" % Test,
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion         % Runtime,
     ),
     addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.2" cross CrossVersion.full),
