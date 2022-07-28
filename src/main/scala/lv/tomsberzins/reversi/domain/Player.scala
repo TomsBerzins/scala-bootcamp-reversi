@@ -5,9 +5,7 @@ import cats.implicits._
 import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.{Decoder, Encoder}
 
-case class Player private (name: String, id: String){
-
-}
+case class Player private (name: String, id: String)
 object Player {
   implicit val playerDecoder: Decoder[Player] = deriveDecoder[Player]
   implicit val playerEncoder: Encoder[Player] = deriveEncoder[Player]

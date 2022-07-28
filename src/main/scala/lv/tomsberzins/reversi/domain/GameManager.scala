@@ -8,7 +8,12 @@ import fs2.concurrent.InspectableQueue
 import lv.tomsberzins.reversi.Messages.Websocket.GameMessage._
 import lv.tomsberzins.reversi.domain.GameManager.PlayerId
 
-case class GameManager[F[_] : Concurrent](data: Ref[F, (Map[PlayerId, InspectableQueue[F, GameOutputCommand]], Game)]) {
+/** Each active game is represented by a game manager which is exposes api to interact with the game
+  * and players (via map of queues, similar to how topic is implemented but without the 1 message retention limit)
+  */
+case class GameManager[F[_]: Concurrent](
+    data: Ref[F, (Map[PlayerId, InspectableQueue[F, GameOutputCommand]], Game)]
+) {
   def bothPlayersOnline(): F[Boolean] = data.get.map(_._1.size == 2)
 
   def getGame: F[Game] = data.get._2F
@@ -29,33 +34,40 @@ case class GameManager[F[_] : Concurrent](data: Ref[F, (Map[PlayerId, Inspectabl
     })
   }
 
-  def removeQueueForPlayer(playerId: PlayerId): F[(Map[PlayerId, InspectableQueue[F, GameOutputCommand]], Game)] = {
+  def removeQueueForPlayer(
+      playerId: PlayerId
+  ): F[(Map[PlayerId, InspectableQueue[F, GameOutputCommand]], Game)] = {
     data.updateAndGet(pair => {
       (pair._1.removed(playerId), pair._2)
     })
   }
 
   def publishToBothPlayers(msg: GameOutputCommand): F[Unit] = {
-    def publishToPlayers(playerQueues: List[InspectableQueue[F, GameOutputCommand]], msg: GameOutputCommand): F[Unit] = {
+    def publishToPlayers(
+        playerQueues: List[InspectableQueue[F, GameOutputCommand]],
+        msg: GameOutputCommand
+    ): F[Unit] = {
       playerQueues match {
-        case ::(queue, next) => queue.enqueue1(msg) *> publishToPlayers(next, msg)
+        case ::(queue, next) =>
+          queue.enqueue1(msg) *> publishToPlayers(next, msg)
         case Nil => ().pure[F]
       }
     }
 
-    for {
-      cData <- data.get
-      _ <- publishToPlayers(cData._1.values.toList, msg)
-    } yield ()
-
+    data.get.flatMap(data => {
+      publishToPlayers(data._1.values.toList, msg)
+    })
   }
 
-  def publishToSpecificPlayer(playerId: PlayerId, msg: GameOutputCommand): F[Unit] = {
+  def publishToSpecificPlayer(
+      playerId: PlayerId,
+      msg: GameOutputCommand
+  ): F[Unit] = {
     for {
       cData <- data.get
       _ <- cData._1.get(playerId) match {
         case Some(q) => q.enqueue1(msg)
-        case _ => ().pure[F]
+        case _       => ().pure[F]
       }
     } yield ()
   }
@@ -117,36 +129,39 @@ case class GameManager[F[_] : Concurrent](data: Ref[F, (Map[PlayerId, Inspectabl
     }
   }
 
+  /**
+   * Used when player joins(also rejoins later on) to get latest game state
+   */
   def publishGameStateMessage(playerId: PlayerId): F[Unit] = {
     for {
       bothPlayersOnline <- bothPlayersOnline()
       game <- getGame
       _ <- game.getPlayerNextToMove match {
-        case Some(playerToMove) => {
+        case Some(playerToMove) =>
           if (bothPlayersOnline && !game.inProgress) {
             this.setGameInProgress() *>
-              publishToBothPlayers(GameServerMessage("Game started")) *>
-              publishToBothPlayers(PlayerNextToMove(playerToMove, game))
+              publishToBothPlayers(GameServerMessage("Game started", "game-started")) *> publishToBothPlayers(PlayerNextToMove(playerToMove, game))
           } else if (!game.inProgress) {
-            publishToSpecificPlayer(playerId, GameServerMessage("Waiting for other player to join"))
+            publishToSpecificPlayer(playerId, GameServerMessage("Waiting for other player to join", "game-waiting-for-opponent"))
           } else {
             publishToSpecificPlayer(playerId, PlayerNextToMove(playerToMove, game))
           }
-        }
         case None => ().pure[F] //this shouldn't happen
       }
 
     } yield ()
   }
 
-  def registerPlayerForGame(player: Player): F[Either[String, (InspectableQueue[F, GameOutputCommand], Game)]] = {
+  def registerPlayerForGame(
+      player: Player
+  ): F[Either[String, (InspectableQueue[F, GameOutputCommand], Game)]] = {
     for {
       newQueue <- InspectableQueue.unbounded[F, GameOutputCommand]
       queueAndGame <- data.modify(pair => {
         val game = pair._2
         val queues = pair._1
         if (game.isFull && !game.isPlayerRegistered(player)) {
-          (pair, "Game is full".asLeft[(InspectableQueue[F, GameOutputCommand] , Game)])
+          (pair, "Game is full".asLeft[(InspectableQueue[F, GameOutputCommand], Game)])
         } else if (game.isPlayerRegistered(player)) {
           val addedQueue = queues.updated(player.id, newQueue)
           val updatedPair = (addedQueue, game)
@@ -168,7 +183,11 @@ object GameManager {
   type GameId = String
   type PlayerId = String
 
-  def apply[F[_] : Concurrent](game: Game): F[GameManager[F]] = {
-    Ref.of[F, (Map[PlayerId, InspectableQueue[F, GameOutputCommand]], Game)]((Map.empty, game)).map(GameManager(_))
+  def apply[F[_]: Concurrent](game: Game): F[GameManager[F]] = {
+    Ref
+      .of[F, (Map[PlayerId, InspectableQueue[F, GameOutputCommand]], Game)](
+        (Map.empty, game)
+      )
+      .map(GameManager(_))
   }
 }

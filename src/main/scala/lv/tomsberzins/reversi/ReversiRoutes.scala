@@ -27,20 +27,19 @@ object ReversiRoutes {
     import dsl._
     HttpRoutes.of[F] {
 
-      case GET -> Root / "game" / gameId / playerId=> {
-
+      case GET -> Root / "game" / gameId / playerId =>
         val toClientPipe: Pipe[F, GameOutputCommand, WebSocketFrame] = _.map(lobbyOutputMsg => {
           Text(lobbyOutputMsg.asJson.noSpaces)
         })
 
         def fromClientPipe( gameManager: GameManager[F], player: Player): Pipe[F, WebSocketFrame, Unit] = {
           _.collect {
-            case Text(text, _) => decode[GameInputCommand](text).getOrElse(Invalid(text))
+            case Text(text, _) => decode[GameInputCommand](text).getOrElse(Invalid())
             case Close(_) => GameInputPlayerLeft(player.id)
           }.evalMap(gameManager.handlePlayerInput(_, player))
         }
 
-      val responseT = for {
+        val responseT = for {
         player <- EitherT.fromOptionF(playerRepository.getPlayerById(playerId), "Player with such id not found")
         gm <- EitherT(gamesManagerContainer.getGameManager(gameId))
         (privateQ,_) <- EitherT(gm.registerPlayerForGame(player))
@@ -52,7 +51,6 @@ object ReversiRoutes {
         _ <- EitherT.right[String](gm.publishGameStateMessage(player.id))
       } yield response
 
-
         for {
           res <- responseT.value
           response <-  res match {
@@ -60,7 +58,6 @@ object ReversiRoutes {
             case Left(error) => BadRequest(error)
           }
         } yield response
-      }
     }
   }
 }

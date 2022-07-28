@@ -6,7 +6,7 @@ import fs2.concurrent.Topic
 import lv.tomsberzins.reversi.Messages.Websocket.{OutputCommand, ServerMessage}
 import lv.tomsberzins.reversi.Repository._
 import org.http4s.blaze.server.BlazeServerBuilder
-import org.http4s.server.middleware.Logger
+import org.http4s.server.middleware.{CORS, Logger}
 
 import scala.concurrent.ExecutionContext
 
@@ -30,7 +30,7 @@ object ReversiServer {
       exitCode <- BlazeServerBuilder[F](ExecutionContext.global)
         .bindHttp(8080, "0.0.0.0")
         .withHttpApp(
-          finalHttpApp
+          CORS.policy.withAllowOriginAll(finalHttpApp)
         )
         .serve.compile.drain.as(ExitCode.Success)
     } yield exitCode

@@ -4,15 +4,14 @@ import cats.effect.Concurrent
 import cats.implicits._
 import fs2.Pipe
 import fs2.concurrent.{Queue, Topic}
-import io.circe.Encoder
 import io.circe.generic.auto._
-import io.circe.generic.semiauto._
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
 import lv.tomsberzins.reversi.Messages.Http.LobbyRequests.CreatePlayer
 import lv.tomsberzins.reversi.Messages.Websocket._
 import lv.tomsberzins.reversi.Repository.{GameManagerRepository, PlayerRepository, PlayersInLobbyRepository}
-import lv.tomsberzins.reversi.domain.{ Game, Player}
+import lv.tomsberzins.reversi.domain._
+import lv.tomsberzins.reversi.Messages.Websocket.OutputCommand.encodePlayersInLobby
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.websocket.WebSocketBuilder
@@ -43,19 +42,20 @@ object LobbyRoutes {
           response <- Ok(newPlayer)
         } yield response
 
-      case GET -> Root / "list-players-in-lobby" => Ok(playersInLobbyRepo.getAllPlayers)
-      case GET -> Root / "list-games" => Ok(gamesManagerContainer.getAllGames)
+      case GET -> Root / "list-players-in-lobby" => Ok(playersInLobbyRepo.getAllPlayers.map(_.asJson))
+
+      case GET -> Root / "list-games" => Ok(gamesManagerContainer.getAllGames.map(_.asJson(Game.encodeGameList)))
 
       case GET -> Root / "lobby" / playerId => {
 
         val toClientPipe: Pipe[F, OutputCommand, WebSocketFrame] = _.map(lobbyOutputMsg => {
-          Text(lobbyOutputMsg.asJson.noSpaces)
+          Text(lobbyOutputMsg.asJson(OutputCommand.encodeLobbyOutputCommand).noSpaces)
         })
 
         def fromClientPipe(player: Player, privateMessageQueue: Queue[F, WebSocketFrame]): Pipe[F, WebSocketFrame, OutputCommand] = {
             _.collect {
               case Text(text, _) => decode[InputCommand](text).getOrElse(Invalid())
-              case Close(_) => PlayerLeftLobby(player)
+              case Close(_) => PlayerLeftInput(player)
             }
               .evalMap[F, Either[LobbyError, OutputCommand]] {
                 case CreateGameInput(name) => for {
@@ -67,19 +67,16 @@ object LobbyRoutes {
                     _ => {CreateGameOutput(player, game.playerToStoneMap, game.id, game.name, allGames).asRight.pure[F]}
                   )
                 } yield gameOutputMessage
-                case playerLeft @ PlayerLeftLobby(player) => for {
+                case PlayerLeftInput(player) => for {
                     _ <- playersInLobbyRepo.removePlayer(player)
-                  } yield playerLeft.asInstanceOf[OutputCommand].asRight[LobbyError]
+                    playerList <- playersInLobbyRepo.getAllPlayers
+                  } yield PlayerLeftOutput(player, playerList).asRight[LobbyError]
 
                 case Invalid(_) => LobbyError("Invalid input command").asLeft[OutputCommand].pure[F]
                 case ChatInput(message) => ChatOutput(message, player).asInstanceOf[OutputCommand].asRight[LobbyError].pure[F]
               }
-
               .evalTap {
-                case Left(error) => {
-                  implicit val encodePerson: Encoder[LobbyError] = deriveEncoder //TODO without this causes stack overflow, recheck
-                  privateMessageQueue.enqueue1(Text(error.asJson.noSpaces))
-                }
+                case Left(error) => privateMessageQueue.enqueue1(Text(error.asJson.noSpaces))
                 case Right(_) => ().pure[F]
               }
               .collect {
