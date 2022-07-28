@@ -25,11 +25,11 @@ object GameMessage {
     }
   }
 
-  case class GameInputPlayerLeft private (playerId: String, action: String) extends GameInputCommand with GameOutputCommand
+  case class GameInputPlayerLeft private (player: Player, action: String) extends GameInputCommand with GameOutputCommand
   object GameInputPlayerLeft {
     val action = "player-left"
-    def apply(playerId: String): GameInputPlayerLeft = {
-      GameInputPlayerLeft(playerId, action)
+    def apply(player: Player): GameInputPlayerLeft = {
+      GameInputPlayerLeft(player, action)
     }
   }
 
@@ -84,9 +84,9 @@ object GameMessage {
       }
 
     implicit val encodeGameOutputCommand: Encoder[GameOutputCommand] = {
-      case GameInputPlayerLeft(playerId, action) =>
+      case GameInputPlayerLeft(player, action) =>
         Json.obj(
-          ("player_id", Json.fromString(playerId)),
+          ("player", player.asJson),
           ("action", Json.fromString(action))
         )
       case GameServerMessage(message, action) =>

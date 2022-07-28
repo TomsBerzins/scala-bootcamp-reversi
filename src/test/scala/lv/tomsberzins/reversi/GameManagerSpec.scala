@@ -276,11 +276,11 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
         gm <- GameManager[IO](game)
         _ <- gm.registerPlayerForGame(gameOwner)
         _ <- gm.registerPlayerForGame(otherPlayer)
-        _ <- gm.handlePlayerInput(GameInputPlayerLeft(otherPlayer.id), otherPlayer)
+        _ <- gm.handlePlayerInput(GameInputPlayerLeft(otherPlayer), otherPlayer)
         data <- gm.data.get
         gameOwnerQ <- data._1.getOrElse(gameOwner.id, emptyQ).pure[IO]
         _ <- gameOwnerQ.dequeue1.asserting(msg => {
-          msg shouldBe GameInputPlayerLeft(otherPlayer.id)
+          msg shouldBe GameInputPlayerLeft(otherPlayer)
         })
       } yield {
         data._1.get(otherPlayer.id) shouldBe None

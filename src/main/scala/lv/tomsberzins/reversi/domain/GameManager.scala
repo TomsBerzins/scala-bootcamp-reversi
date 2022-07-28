@@ -124,7 +124,7 @@ case class GameManager[F[_]: Concurrent](
               )
           }
         ))
-      case GameInputPlayerLeft(playerId, _) => removeQueueForPlayer(playerId) *> publishToBothPlayers(GameInputPlayerLeft(playerId))
+      case GameInputPlayerLeft(player, _) => removeQueueForPlayer(player.id) *> publishToBothPlayers(GameInputPlayerLeft(player))
       case Invalid(action) => publishToSpecificPlayer(player.id, GameServerMessage("Invalid input", action))
     }
   }

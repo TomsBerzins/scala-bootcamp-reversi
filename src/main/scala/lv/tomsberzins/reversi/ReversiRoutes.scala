@@ -35,7 +35,7 @@ object ReversiRoutes {
         def fromClientPipe( gameManager: GameManager[F], player: Player): Pipe[F, WebSocketFrame, Unit] = {
           _.collect {
             case Text(text, _) => decode[GameInputCommand](text).getOrElse(Invalid())
-            case Close(_) => GameInputPlayerLeft(player.id)
+            case Close(_) => GameInputPlayerLeft(player)
           }.evalMap(gameManager.handlePlayerInput(_, player))
         }
 
