@@ -61,9 +61,10 @@ object LobbyRoutes {
                 case CreateGameInput(name) => for {
                   game <- Game(name, player)
                   gameManagerCreated <- gamesManagerContainer.tryCreateGameManagerForGame(game)
+                  allGames <- gamesManagerContainer.getAllGames
                   gameOutputMessage <- gameManagerCreated.fold(
                     error => LobbyError(error).asLeft.pure[F],
-                    _ => {CreateGameOutput(player, game.playerToStoneMap.keys.toList, game.id, game.name).asRight.pure[F]}
+                    _ => {CreateGameOutput(player, game.playerToStoneMap, game.id, game.name, allGames).asRight.pure[F]}
                   )
                 } yield gameOutputMessage
                 case playerLeft @ PlayerLeftLobby(player) => for {
