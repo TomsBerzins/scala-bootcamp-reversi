@@ -8,7 +8,6 @@ import lv.tomsberzins.reversi.domain.Player
 
 trait PlayerRepository[F[_]] {
   def getPlayerById(id: String): F[Option[Player]]
-  def getAllPlayers(): F[Map[String, Player]]
   def createPlayer(player: Player): F[Player]
 }
 
@@ -18,10 +17,6 @@ final class PlayerRepositoryInMemory[F[_]: Monad] (playersInMem: Ref[F, Map[Stri
     for {
       players <- playersInMem.get
     } yield players.get(id)
-  }
-
-  override def getAllPlayers(): F[Map[String, Player]] = {
-    playersInMem.get
   }
 
   override def createPlayer(player: Player): F[Player] = {
