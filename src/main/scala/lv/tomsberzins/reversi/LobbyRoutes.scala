@@ -94,8 +94,9 @@ object LobbyRoutes {
             send =  (lobbyTopic.subscribe(100) through toClientPipe) merge privateMessageQueue.dequeue,
             receive = fromClientPipe(player, privateMessageQueue) andThen lobbyTopic.publish
           ))
-          _ <- OptionT.liftF(lobbyTopic.publish1(PlayerJoinedLobby(player)))
           _ <- OptionT.liftF(playersInLobbyRepo.addPlayer(player))
+          playerList <- OptionT.liftF(playersInLobbyRepo.getAllPlayers)
+          _ <- OptionT.liftF(lobbyTopic.publish1(PlayerJoinedLobby(player, playerList)))
         } yield response
 
         for {
