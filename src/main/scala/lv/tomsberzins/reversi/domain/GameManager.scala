@@ -1,6 +1,6 @@
 package lv.tomsberzins.reversi.domain
 
-import cats.data.EitherT
+import cats.Applicative
 import cats.effect.Concurrent
 import cats.effect.concurrent.Ref
 import cats.implicits._
@@ -60,44 +60,60 @@ case class GameManager[F[_] : Concurrent](data: Ref[F, (Map[PlayerId, Inspectabl
     } yield ()
   }
 
-  def handlePlayerInput(gameInputCommand: GameInputCommand, player: Player): F[Unit] = {
+  def handlePlayerInput(
+      gameInputCommand: GameInputCommand,
+      player: Player
+  ): F[Unit] = {
     gameInputCommand match {
-      case GameInputMove(position, _) => {
-
-        val gameUpdatedOrError = for {
-          game <- EitherT.liftF(getGame)
-          playerStone <- EitherT.fromOption[F](game.getPlayerStone(player.id), "Error")
-          updatedGame <- EitherT(data.modify(pair => {
-            val game = pair._2
-            game.move(playerStone, position) match {
-              case Left(error) => (pair, error.asLeft[Game])
-              case Right(game) => ((pair._1, game), game.asRight[String])
-            }
-          }))
-        } yield updatedGame
-
-        for {
-          moveResult <- gameUpdatedOrError.value
-          _ <- moveResult match {
-            case Left(error) => publishToSpecificPlayer(player.id, GameServerMessage(error))
-            case Right(game) => {
-              game.getPlayerStone(player.id) match {
-                case Some(playerStone) => {
-                  if (game.checkIfGameEnded(playerStone.flip())) {
-                    publishToBothPlayers(PlayerMoved(player,game)) *> publishToBothPlayers(GameServerMessage("Game ended")) *> setGameEnded()
-                  } else {
-                    publishToBothPlayers(PlayerMoved(player,game))
-                  }
-                }
-                case None => ().pure[F]
-              }
-            }
+      case GameInputMove(position, _) =>
+        val moveNotPossibleOrStone = getGame.map(game => {
+          val gameInProgress = game.gameStatus match {
+            case GameNotStarted => "Game not started yet".asLeft
+            case GameEnded      => "Game has ended".asLeft
+            case GameInProgress => game.asRight
           }
-        } yield ()
-      }
-      case GameInputPlayerLeft(playerId, _) =>
-        removeQueueForPlayer(playerId) *> publishToBothPlayers(GameInputPlayerLeft(playerId))
-      case inv@Invalid(_, _) => publishToSpecificPlayer(player.id, inv)
+          val playerStoneFound =
+            game.getPlayerStone(player.id).toRight("Player not found")
+
+          Applicative[Either[String, *]].map2(gameInProgress, playerStoneFound)(
+            (_, stone) => stone
+          )
+        })
+
+        moveNotPossibleOrStone.flatMap( _.fold(
+          moveNotPossibleError =>
+            publishToSpecificPlayer(
+              player.id,
+              GameServerMessage(moveNotPossibleError, "invalid-move")
+            ),
+          stone => {
+            data.modify(pair => {
+                val game = pair._2
+                game.move(stone, position) match {
+                  case Left(error) => (pair, error.asLeft[Game])
+                  case Right(game) => ((pair._1, game), game.asRight[String])
+                }
+              })
+              .flatMap(
+                _.fold(
+                  invalidMoveError =>
+                    publishToSpecificPlayer(
+                      player.id,
+                      GameServerMessage(invalidMoveError, "invalid-move")
+                    ),
+                  game => {
+                    if (game.checkIfGameEnded(stone.flip())) {
+                      setGameEnded() *> publishToBothPlayers(PlayerMoved(player, game)) *> publishToBothPlayers(GameServerMessage("Game ended", "game-end"))
+                    } else {
+                      publishToBothPlayers(PlayerMoved(player, game))
+                    }
+                  }
+                )
+              )
+          }
+        ))
+      case GameInputPlayerLeft(playerId, _) => removeQueueForPlayer(playerId) *> publishToBothPlayers(GameInputPlayerLeft(playerId))
+      case Invalid(action) => publishToSpecificPlayer(player.id, GameServerMessage("Invalid input", action))
     }
   }
 
