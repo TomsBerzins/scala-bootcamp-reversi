@@ -222,10 +222,6 @@ case class Game private (
     gameStatus == GameInProgress
   }
 
-  def hasEnded: Boolean = {
-    gameStatus == GameEnded
-  }
-
   def getPlayerNextToMove: Option[Player] = {
     val nextStoneToMove = this.gameState.nextStone
     this.playerToStoneMap.find(_._2 == nextStoneToMove)._1F
