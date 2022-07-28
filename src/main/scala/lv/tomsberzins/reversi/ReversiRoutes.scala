@@ -26,21 +26,6 @@ object ReversiRoutes {
     val dsl = new Http4sDsl[F] {}
     import dsl._
     HttpRoutes.of[F] {
-      case GET -> Root / "game-manager"/ gameId => {
-       val a = for {
-          gm <- EitherT(gamesManagerContainer.getGameManager(gameId))
-          test <- EitherT.right(gm.getGame)
-          res <- EitherT.right[String](Ok(test.gameState.printPretty()))
-        } yield res
-
-        for {
-          res <- a.value
-          response <- res match {
-            case Right(value) => value.pure[F]
-            case Left(_) => ???
-          }
-        } yield response
-      }
 
       case GET -> Root / "game" / gameId / playerId=> {
 
