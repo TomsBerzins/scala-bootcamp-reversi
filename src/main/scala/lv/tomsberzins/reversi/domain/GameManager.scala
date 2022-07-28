@@ -14,11 +14,11 @@ import lv.tomsberzins.reversi.domain.GameManager.PlayerId
 case class GameManager[F[_]: Concurrent](
     data: Ref[F, (Map[PlayerId, InspectableQueue[F, GameOutputMessage]], Game)]
 ) {
-  def bothPlayersOnline(): F[Boolean] = data.get.map(_._1.size == 2)
+  private def bothPlayersOnline(): F[Boolean] = data.get.map(_._1.size == 2)
 
   def getGame: F[Game] = data.get._2F
 
-  def setGameInProgress(): F[Game] = {
+  private def setGameInProgress(): F[Game] = {
     data.modify(pair => {
       val updatedGame = pair._2.copy(gameStatus = GameInProgress)
 
@@ -26,7 +26,7 @@ case class GameManager[F[_]: Concurrent](
     })
   }
 
-  def setGameEnded(): F[Game] = {
+  private def setGameEnded(): F[Game] = {
     data.modify(pair => {
       val updatedGame = pair._2.copy(gameStatus = GameEnded)
 
@@ -34,19 +34,16 @@ case class GameManager[F[_]: Concurrent](
     })
   }
 
-  def removeQueueForPlayer(
+  private def removeQueueForPlayer(
       playerId: PlayerId
-  ): F[(Map[PlayerId, InspectableQueue[F, GameOutputCommand]], Game)] = {
+  ): F[(Map[PlayerId, InspectableQueue[F, GameOutputMessage]], Game)] = {
     data.updateAndGet(pair => {
       (pair._1.removed(playerId), pair._2)
     })
   }
 
-  def publishToBothPlayers(msg: GameOutputCommand): F[Unit] = {
-    def publishToPlayers(
-        playerQueues: List[InspectableQueue[F, GameOutputCommand]],
-        msg: GameOutputCommand
-    ): F[Unit] = {
+  def publishToBothPlayers(msg: GameOutputMessage): F[Unit] = {
+    def publishToPlayers(playerQueues: List[InspectableQueue[F, GameOutputMessage]], msg: GameOutputMessage): F[Unit] = {
       playerQueues match {
         case ::(queue, next) =>
           queue.enqueue1(msg) *> publishToPlayers(next, msg)
@@ -81,8 +78,7 @@ case class GameManager[F[_]: Concurrent](
             case GameEnded      => "Game has ended".asLeft
             case GameInProgress => game.asRight
           }
-          val playerStoneFound =
-            game.getPlayerStone(player.id).toRight("Player not found")
+          val playerStoneFound = game.getPlayerStone(player.id).toRight("Player not found")
 
           Applicative[Either[String, *]].map2(gameInProgress, playerStoneFound)(
             (_, stone) => stone

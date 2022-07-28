@@ -47,9 +47,9 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
           for {
             _ <- gm.registerPlayerForGame(player)
             data <- gm.data.get
-            _ <- gm.bothPlayersOnline().asserting(_ shouldBe false)
           } yield {
             data._1.keys should contain (player.id )
+            data._1.size shouldBe(1)
           }
       })
     }
@@ -64,50 +64,11 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
         _ <- gm.registerPlayerForGame(gameOwner)
         _ <- gm.registerPlayerForGame(otherPlayer)
         data <- gm.data.get
-        _ <- gm.bothPlayersOnline().asserting(_ shouldBe true)
       } yield {
         data._2.playerToStoneMap should contain (otherPlayer -> WhiteStone())
         data._1.keys should contain (otherPlayer.id)
+        data._1.size shouldBe 2
 
-      }
-    }
-  }
-
-  "Game manager set game in progress" in {
-    GameManager[IO](gameMock).flatMap(gm => {
-      gm.setGameInProgress().asserting(game => {
-        game.gameStatus shouldBe GameInProgress
-      })
-    })
-    val gameOwner = mock[Player]
-    for {
-      game <- Game[IO]("someName", gameOwner)
-      gm <- GameManager[IO](game)
-      updatedGame <- gm.setGameInProgress()
-    } yield {
-      updatedGame.gameStatus shouldBe GameInProgress
-    }
-  }
-
-  "Remove player queue" - {
-    "Try to remove nonexistent player queue" in {
-      GameManager[IO](gameMock).flatMap(gm => {
-         gm.removeQueueForPlayer("some-id").asserting(_._1.size shouldBe 0)
-      })
-    }
-    "Try to remove existing player queue" in {
-      val player = mock[Player]
-
-      for {
-        game <- Game[IO]("someName", player)
-        gm <- GameManager[IO](game)
-        _ <- gm.registerPlayerForGame(player)
-        _ <- gm.data.get.asserting(_._1.size shouldBe 1)
-        _ <- gm.removeQueueForPlayer(player.id)
-        data <- gm.data.get
-
-      } yield {
-          data._1.size shouldBe 0
       }
     }
   }
@@ -187,6 +148,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
           _ <- gm.registerPlayerForGame(otherPlayer)
           _ <- gm.publishGameStateMessage(otherPlayer.id)
           data <- gm.data.get
+          _ = data._2.gameStatus shouldBe GameInProgress
           // game owner (player1) now should see that game has started and whoever needs to move
           gameOwnerQ <- data._1.getOrElse(gameOwner.id, emptyQ).pure[IO]
           _ <- gameOwnerQ.dequeue1.asserting(msg => {
