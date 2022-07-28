@@ -178,7 +178,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
           data <- gm.data.get
           gameOwnerQ <- data._1.getOrElse(gameOwner.id, emptyQ).pure[IO]
           _ <- gameOwnerQ.dequeue1.asserting(msg => {
-            msg shouldBe GameServerMessage("Waiting for other player to join")
+            msg shouldBe GameServerMessage("Waiting for other player to join", "game-waiting-for-opponent")
           })
           _ <- gameOwnerQ.tryDequeue1.asserting(msg => {
             msg shouldBe None
@@ -190,7 +190,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
           // game owner (player1) now should see that game has started and whoever needs to move
           gameOwnerQ <- data._1.getOrElse(gameOwner.id, emptyQ).pure[IO]
           _ <- gameOwnerQ.dequeue1.asserting(msg => {
-            msg shouldBe GameServerMessage("Game started")
+            msg shouldBe GameServerMessage("Game started", "game-started")
           })
           _ <- gameOwnerQ.dequeue1.asserting(msg => {
             msg shouldBe a [PlayerNextToMove]
@@ -200,7 +200,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
           })
           otherPlayerQueue <- data._1.getOrElse(otherPlayer.id, emptyQ).pure[IO]
           _ <- otherPlayerQueue.dequeue1.asserting(msg => {
-            msg shouldBe GameServerMessage("Game started")
+            msg shouldBe GameServerMessage("Game started", "game-started")
           })
           _ <- otherPlayerQueue.dequeue1.asserting(msg => {
             msg shouldBe a [PlayerNextToMove]
@@ -286,6 +286,60 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
         data._1.get(otherPlayer.id) shouldBe None
       }
     }
+    "Handle player move when game not started" in {
+      val gameOwner = mock[Player]
+      when(gameOwner.id) thenReturn("owner-id")
+
+
+      val game = mock[Game]
+      when(game.getPlayerStone(gameOwner.id)) thenReturn(WhiteStone().some)
+      when(game.isPlayerRegistered(gameOwner)) thenReturn(true)
+      when(game.gameStatus) thenReturn(GameNotStarted)
+
+      verify(game, never()).checkIfGameEnded(any[Stone])
+      for {
+        emptyQ <- InspectableQueue.unbounded[IO, GameOutputCommand]
+        gm <- GameManager[IO](game)
+        _ <- gm.registerPlayerForGame(gameOwner)
+        _ <- gm.handlePlayerInput(GameInputMove(Position(0,0)), gameOwner)
+        data <- gm.data.get
+        gameOwnerQ <- data._1.getOrElse(gameOwner.id, emptyQ).pure[IO]
+        _ <- gameOwnerQ.dequeue1.asserting(msg => {
+          msg shouldBe GameServerMessage("Game not started yet", "invalid-move")
+        })
+      } yield succeed
+    }
+    "Handle player move when game already ended" in {
+      val gameOwner = mock[Player]
+      when(gameOwner.id) thenReturn("owner-id")
+
+      val otherPlayer = mock[Player]
+      when(otherPlayer.id) thenReturn("other-player-id")
+
+      val game = mock[Game]
+      when(game.getPlayerStone(gameOwner.id)) thenReturn(WhiteStone().some)
+      when(game.isPlayerRegistered(gameOwner)) thenReturn(true)
+      when(game.isPlayerRegistered(otherPlayer)) thenReturn(true)
+      when(game.gameStatus) thenReturn(GameEnded)
+
+      verify(game, never()).checkIfGameEnded(any[Stone])
+      for {
+        emptyQ <- InspectableQueue.unbounded[IO, GameOutputCommand]
+        gm <- GameManager[IO](game)
+        _ <- gm.registerPlayerForGame(gameOwner)
+        _ <- gm.registerPlayerForGame(otherPlayer)
+        _ <- gm.handlePlayerInput(GameInputMove(Position(0,0)), gameOwner)
+        data <- gm.data.get
+        gameOwnerQ <- data._1.getOrElse(gameOwner.id, emptyQ).pure[IO]
+        _ <- gameOwnerQ.dequeue1.asserting(msg => {
+          msg shouldBe GameServerMessage("Game has ended", "invalid-move")
+        })
+        otherPlayerQ <- data._1.getOrElse(otherPlayer.id, emptyQ).pure[IO]
+        _ <- otherPlayerQ.tryDequeue1.asserting(msg => {
+          msg shouldBe None
+        })
+      } yield succeed
+    }
     "Handle invalid player move" in {
       val gameOwner = mock[Player]
       when(gameOwner.id) thenReturn("owner-id")
@@ -298,6 +352,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
       when(game.move(WhiteStone(), Position(0,0))) thenReturn(Left("Some move error"))
       when(game.isPlayerRegistered(gameOwner)) thenReturn(true)
       when(game.isPlayerRegistered(otherPlayer)) thenReturn(true)
+      when(game.gameStatus) thenReturn(GameInProgress)
 
       verify(game, never()).checkIfGameEnded(any[Stone])
       for {
@@ -309,7 +364,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
         data <- gm.data.get
         gameOwnerQ <- data._1.getOrElse(gameOwner.id, emptyQ).pure[IO]
         _ <- gameOwnerQ.dequeue1.asserting(msg => {
-          msg shouldBe GameServerMessage("Some move error")
+          msg shouldBe GameServerMessage("Some move error", "invalid-move")
         })
         otherPlayerQ <- data._1.getOrElse(otherPlayer.id, emptyQ).pure[IO]
         _ <- otherPlayerQ.tryDequeue1.asserting(msg => {
@@ -333,6 +388,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
       when(game.move(WhiteStone(), Position(0,0))) thenReturn(Right(updateGameAfterMove))
       when(game.isPlayerRegistered(gameOwner)) thenReturn(true)
       when(game.isPlayerRegistered(otherPlayer)) thenReturn(true)
+      when(game.gameStatus) thenReturn(GameInProgress)
 
       for {
         emptyQ <- InspectableQueue.unbounded[IO, GameOutputCommand]
@@ -366,6 +422,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
       when(game.move(WhiteStone(), Position(0,0))) thenReturn(Right(updateGameAfterMove))
       when(game.isPlayerRegistered(gameOwner)) thenReturn(true)
       when(game.isPlayerRegistered(otherPlayer)) thenReturn(true)
+      when(game.gameStatus) thenReturn(GameInProgress)
 
       for {
         emptyQ <- InspectableQueue.unbounded[IO, GameOutputCommand]
@@ -376,10 +433,10 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
         data <- gm.data.get
         gameOwnerQ <- data._1.getOrElse(gameOwner.id, emptyQ).pure[IO]
         _ <- gameOwnerQ.dequeue1.asserting(_ shouldBe PlayerMoved(gameOwner, updateGameAfterMove))
-        _ <- gameOwnerQ.dequeue1.asserting(_ shouldBe GameServerMessage("Game ended"))
+        _ <- gameOwnerQ.dequeue1.asserting(_ shouldBe GameServerMessage("Game ended", "game-end"))
         otherPlayerQ <- data._1.getOrElse(otherPlayer.id, emptyQ).pure[IO]
         _ <- otherPlayerQ.dequeue1.asserting(_ shouldBe PlayerMoved(gameOwner, updateGameAfterMove))
-        _ <- otherPlayerQ.dequeue1.asserting(_ shouldBe GameServerMessage("Game ended"))
+        _ <- otherPlayerQ.dequeue1.asserting(_ shouldBe GameServerMessage("Game ended", "game-end"))
 
       } yield succeed
     }
