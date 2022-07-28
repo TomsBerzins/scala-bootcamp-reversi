@@ -8,15 +8,11 @@ import lv.tomsberzins.reversi.domain.Game.encodePlayerToStoneMap
 import lv.tomsberzins.reversi.domain.{Game, Player, Position, Stone}
 object GameMessage {
 
-  sealed trait Command {
-    val action: String
-  }
+  sealed trait GameInputMessage extends Message
 
-  sealed trait GameInputCommand extends Command
+  sealed trait GameOutputMessage extends Message
 
-  sealed trait GameOutputCommand extends Command
-
-  case class GameInputMove private (position: Position, action: String) extends GameInputCommand
+  case class GameInputMove private (position: Position, action: String) extends GameInputMessage
 
   object GameInputMove {
     val action = "move"
@@ -25,7 +21,7 @@ object GameMessage {
     }
   }
 
-  case class GameInputPlayerLeft private (player: Player, action: String) extends GameInputCommand with GameOutputCommand
+  case class GameInputPlayerLeft private (player: Player, action: String) extends GameInputMessage with GameOutputMessage
   object GameInputPlayerLeft {
     val action = "player-left"
     def apply(player: Player): GameInputPlayerLeft = {
@@ -33,15 +29,15 @@ object GameMessage {
     }
   }
 
-  case class Invalid private (action: String) extends GameInputCommand
+  case class Invalid private (action: String) extends GameInputMessage
   object Invalid {
     val action = "invalid-input"
     def apply(): Invalid = {
       Invalid(action)
     }
   }
-  object GameInputCommand {
-    implicit val decodeFoo: Decoder[GameInputCommand] = (c: HCursor) =>
+  object GameInputMessage {
+    implicit val decodeFoo: Decoder[GameInputMessage] = (c: HCursor) =>
       for {
         action <- c.downField("action").as[String]
         inputDecoded <- action match {
@@ -49,25 +45,25 @@ object GameMessage {
           case GameInputPlayerLeft.action => c.as[GameInputPlayerLeft]
           case _ =>
             DecodingFailure("Action not recognized", List())
-              .asLeft[GameInputCommand]
+              .asLeft[GameInputMessage]
         }
       } yield inputDecoded
   }
 
-  case class GameServerMessage(message: String, action: String) extends GameOutputCommand
+  case class GameServerMessage(message: String, action: String) extends GameOutputMessage
 
-  case class PlayerJoined(player: Player) extends GameOutputCommand {
+  case class PlayerJoined(player: Player) extends GameOutputMessage {
     override val action: String = "player-joined"
   }
-  case class PlayerNextToMove(playerNextToMove: Player, game: Game) extends GameOutputCommand {
+  case class PlayerNextToMove(playerNextToMove: Player, game: Game) extends GameOutputMessage {
     override val action: String = "player-next-to-move"
   }
 
-  case class PlayerMoved(playerWhoMoved: Player, game: Game) extends GameOutputCommand {
+  case class PlayerMoved(playerWhoMoved: Player, game: Game) extends GameOutputMessage {
     override val action: String = "player-moved"
   }
 
-  object GameOutputCommand {
+  object GameOutputMessage {
 
     implicit val encodeGameState: Encoder[Map[Position, Option[Stone]]] =
       (map: Map[Position, Option[Stone]]) => {
@@ -83,7 +79,7 @@ object GameMessage {
         Json.arr(jsonObjects.toSeq: _*)
       }
 
-    implicit val encodeGameOutputCommand: Encoder[GameOutputCommand] = {
+    implicit val encodeGameOutputMessage: Encoder[GameOutputMessage] = {
       case GameInputPlayerLeft(player, action) =>
         Json.obj(
           ("player", player.asJson),
@@ -103,8 +99,7 @@ object GameMessage {
         Json.obj(
           ("player_next_to_move", player.asJson),
           ("action", Json.fromString(msg.action)),
-          (
-            "game",
+          ("game",
             Json.obj(
               ("board", game.gameState.board.asJson),
               ("player_to_stone", game.playerToStoneMap.asJson)
@@ -115,8 +110,7 @@ object GameMessage {
         Json.obj(
           ("player_who_moved", player.asJson),
           ("action", Json.fromString(msg.action)),
-          (
-            "game",
+          ("game",
             Json.obj(
               ("board", game.gameState.board.asJson),
               ("player_to_stone", game.playerToStoneMap.asJson)

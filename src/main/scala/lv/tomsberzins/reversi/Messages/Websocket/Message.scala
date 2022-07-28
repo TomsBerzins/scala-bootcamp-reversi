@@ -1,5 +1,5 @@
 package lv.tomsberzins.reversi.Messages.Websocket
 
-trait Command {
+trait Message {
   val action: String
 }

@@ -1,12 +1,12 @@
 package lv.tomsberzins.reversi
 
-import cats.data.{EitherT}
+import cats.data.EitherT
 import cats.effect.Concurrent
 import cats.implicits._
 import fs2.Pipe
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
-import lv.tomsberzins.reversi.Messages.Websocket.GameMessage.GameInputCommand._
+import lv.tomsberzins.reversi.Messages.Websocket.GameMessage.GameInputMessage._
 import lv.tomsberzins.reversi.Messages.Websocket.GameMessage._
 import lv.tomsberzins.reversi.Repository._
 import lv.tomsberzins.reversi.domain.{GameManager, Player}
@@ -28,13 +28,13 @@ object ReversiRoutes {
     HttpRoutes.of[F] {
 
       case GET -> Root / "game" / gameId / playerId =>
-        val toClientPipe: Pipe[F, GameOutputCommand, WebSocketFrame] = _.map(lobbyOutputMsg => {
+        val toClientPipe: Pipe[F, GameOutputMessage, WebSocketFrame] = _.map(lobbyOutputMsg => {
           Text(lobbyOutputMsg.asJson.noSpaces)
         })
 
         def fromClientPipe( gameManager: GameManager[F], player: Player): Pipe[F, WebSocketFrame, Unit] = {
           _.collect {
-            case Text(text, _) => decode[GameInputCommand](text).getOrElse(Invalid())
+            case Text(text, _) => decode[GameInputMessage](text).getOrElse(Invalid())
             case Close(_) => GameInputPlayerLeft(player)
           }.evalMap(gameManager.handlePlayerInput(_, player))
         }

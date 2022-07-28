@@ -6,33 +6,33 @@ import io.circe.{Decoder, Encoder, HCursor, Json}
 import lv.tomsberzins.reversi.domain.Game.encodePlayerToStoneMap
 import lv.tomsberzins.reversi.domain._
 
-sealed trait InputCommand extends Command
+sealed trait InputMessage extends Message
 
-case class CreateGameInput(name: String) extends InputCommand {
+case class CreateGameInput(name: String) extends InputMessage {
   override val action: String = CreateGameInput.action
 }
 object CreateGameInput {
   val action = "create-game"
 }
 
-case class PlayerLeftInput(player: Player) extends InputCommand {
+case class PlayerLeftInput(player: Player) extends InputMessage {
   override val action: String = "player-left-lobby"
 }
 object PlayerLeftInput {
   val action = "player-left-lobby"
 }
 
-case class ChatInput(message: String) extends InputCommand {
+case class ChatInput(message: String) extends InputMessage {
   override val action: String = ChatInput.action
 }
 object ChatInput {
   val action = "chat"
 }
 
-case class Invalid(action: String = "invalid-command") extends InputCommand
+case class Invalid(action: String = "invalid-message") extends InputMessage
 
-object InputCommand {
-  implicit val decodeLobbyInputCommand: Decoder[InputCommand] = (c: HCursor) =>
+object InputMessage {
+  implicit val decodeLobbyInputMessage: Decoder[InputMessage] = (c: HCursor) =>
     {
       for {
         action <- c.downField("action").as[String]
@@ -52,17 +52,17 @@ object InputCommand {
     }
 }
 
-sealed trait OutputCommand extends Command
+sealed trait OutputMessage extends Message
 
 case class PlayerLeftOutput(player: Player, playersInLobby: Map[String, Player])
-    extends OutputCommand {
+    extends OutputMessage {
   override val action: String = "player-left-lobby"
 }
 
 case class PlayerJoinedLobby(
     player: Player,
     playersInLobby: Map[String, Player]
-) extends OutputCommand {
+) extends OutputMessage {
   override val action: String = "player-joined-lobby"
 }
 
@@ -72,21 +72,21 @@ case class CreateGameOutput(
     gameId: String,
     name: String,
     games: List[Game]
-) extends OutputCommand {
+) extends OutputMessage {
   override val action: String = "game-created"
 }
 
-case class ServerMessage(message: String) extends OutputCommand {
+case class ServerMessage(message: String) extends OutputMessage {
   override val action: String = "server-message"
 }
 
-case class ChatOutput(message: String, sender: Player) extends OutputCommand {
+case class ChatOutput(message: String, sender: Player) extends OutputMessage {
   override val action: String = "chat"
 }
 
-object OutputCommand {
+object OutputMessage {
 
-  implicit val encodeLobbyOutputCommand: Encoder[OutputCommand] = {
+  implicit val encodeLobbyOutputMessage: Encoder[OutputMessage] = {
     case output @ CreateGameOutput(owner, players, gameId, name, games) =>
       val outputJson = Json.obj(
         (

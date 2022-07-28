@@ -11,7 +11,7 @@ import lv.tomsberzins.reversi.Messages.Http.LobbyRequests.CreatePlayer
 import lv.tomsberzins.reversi.Messages.Websocket._
 import lv.tomsberzins.reversi.Repository.{GameManagerRepository, PlayerRepository, PlayersInLobbyRepository}
 import lv.tomsberzins.reversi.domain._
-import lv.tomsberzins.reversi.Messages.Websocket.OutputCommand.encodePlayersInLobby
+import lv.tomsberzins.reversi.Messages.Websocket.OutputMessage.encodePlayersInLobby
 import org.http4s.circe.CirceEntityCodec._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.websocket.WebSocketBuilder
@@ -26,7 +26,7 @@ object LobbyRoutes {
   (
     playerRepository: PlayerRepository[F],
     gamesManagerContainer: GameManagerRepository[F],
-    lobbyTopic: Topic[F, OutputCommand],
+    lobbyTopic: Topic[F, OutputMessage],
     playersInLobbyRepo: PlayersInLobbyRepository[F]
   ): HttpRoutes[F] = {
 
@@ -48,16 +48,16 @@ object LobbyRoutes {
 
       case GET -> Root / "lobby" / playerId => {
 
-        val toClientPipe: Pipe[F, OutputCommand, WebSocketFrame] = _.map(lobbyOutputMsg => {
-          Text(lobbyOutputMsg.asJson(OutputCommand.encodeLobbyOutputCommand).noSpaces)
+        val toClientPipe: Pipe[F, OutputMessage, WebSocketFrame] = _.map(lobbyOutputMsg => {
+          Text(lobbyOutputMsg.asJson(OutputMessage.encodeLobbyOutputMessage).noSpaces)
         })
 
-        def fromClientPipe(player: Player, privateMessageQueue: Queue[F, WebSocketFrame]): Pipe[F, WebSocketFrame, OutputCommand] = {
+        def fromClientPipe(player: Player, privateMessageQueue: Queue[F, WebSocketFrame]): Pipe[F, WebSocketFrame, OutputMessage] = {
             _.collect {
-              case Text(text, _) => decode[InputCommand](text).getOrElse(Invalid())
+              case Text(text, _) => decode[InputMessage](text).getOrElse(Invalid())
               case Close(_) => PlayerLeftInput(player)
             }
-              .evalMap[F, Either[LobbyError, OutputCommand]] {
+              .evalMap[F, Either[LobbyError, OutputMessage]] {
                 case CreateGameInput(name) => for {
                   game <- Game(name, player)
                   gameManagerCreated <- gamesManagerContainer.tryCreateGameManagerForGame(game)
@@ -72,8 +72,8 @@ object LobbyRoutes {
                     playerList <- playersInLobbyRepo.getAllPlayers
                   } yield PlayerLeftOutput(player, playerList).asRight[LobbyError]
 
-                case Invalid(_) => LobbyError("Invalid input command").asLeft[OutputCommand].pure[F]
-                case ChatInput(message) => ChatOutput(message, player).asInstanceOf[OutputCommand].asRight[LobbyError].pure[F]
+                case Invalid(_) => LobbyError("Invalid input message").asLeft[OutputMessage].pure[F]
+                case ChatInput(message) => ChatOutput(message, player).asInstanceOf[OutputMessage].asRight[LobbyError].pure[F]
               }
               .evalTap {
                 case Left(error) => privateMessageQueue.enqueue1(Text(error.asJson.noSpaces))

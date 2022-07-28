@@ -12,7 +12,7 @@ import lv.tomsberzins.reversi.domain.GameManager.PlayerId
   * and players (via map of queues, similar to how topic is implemented but without the 1 message retention limit)
   */
 case class GameManager[F[_]: Concurrent](
-    data: Ref[F, (Map[PlayerId, InspectableQueue[F, GameOutputCommand]], Game)]
+    data: Ref[F, (Map[PlayerId, InspectableQueue[F, GameOutputMessage]], Game)]
 ) {
   def bothPlayersOnline(): F[Boolean] = data.get.map(_._1.size == 2)
 
@@ -61,7 +61,7 @@ case class GameManager[F[_]: Concurrent](
 
   def publishToSpecificPlayer(
       playerId: PlayerId,
-      msg: GameOutputCommand
+      msg: GameOutputMessage
   ): F[Unit] = {
     for {
       cData <- data.get
@@ -72,11 +72,8 @@ case class GameManager[F[_]: Concurrent](
     } yield ()
   }
 
-  def handlePlayerInput(
-      gameInputCommand: GameInputCommand,
-      player: Player
-  ): F[Unit] = {
-    gameInputCommand match {
+  def handlePlayerInput(gameInputMessage: GameInputMessage, player: Player): F[Unit] = {
+    gameInputMessage match {
       case GameInputMove(position, _) =>
         val moveNotPossibleOrStone = getGame.map(game => {
           val gameInProgress = game.gameStatus match {
@@ -154,14 +151,14 @@ case class GameManager[F[_]: Concurrent](
 
   def registerPlayerForGame(
       player: Player
-  ): F[Either[String, (InspectableQueue[F, GameOutputCommand], Game)]] = {
+  ): F[Either[String, (InspectableQueue[F, GameOutputMessage], Game)]] = {
     for {
-      newQueue <- InspectableQueue.unbounded[F, GameOutputCommand]
+      newQueue <- InspectableQueue.unbounded[F, GameOutputMessage]
       queueAndGame <- data.modify(pair => {
         val game = pair._2
         val queues = pair._1
         if (game.isFull && !game.isPlayerRegistered(player)) {
-          (pair, "Game is full".asLeft[(InspectableQueue[F, GameOutputCommand], Game)])
+          (pair, "Game is full".asLeft[(InspectableQueue[F, GameOutputMessage], Game)])
         } else if (game.isPlayerRegistered(player)) {
           val addedQueue = queues.updated(player.id, newQueue)
           val updatedPair = (addedQueue, game)
@@ -185,7 +182,7 @@ object GameManager {
 
   def apply[F[_]: Concurrent](game: Game): F[GameManager[F]] = {
     Ref
-      .of[F, (Map[PlayerId, InspectableQueue[F, GameOutputCommand]], Game)](
+      .of[F, (Map[PlayerId, InspectableQueue[F, GameOutputMessage]], Game)](
         (Map.empty, game)
       )
       .map(GameManager(_))
