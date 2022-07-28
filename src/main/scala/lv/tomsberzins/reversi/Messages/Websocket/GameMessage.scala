@@ -10,8 +10,6 @@ object GameMessage {
 
   sealed trait GameInputMessage extends Message
 
-  sealed trait GameOutputMessage extends Message
-
   case class GameInputMove private (position: Position, action: String) extends GameInputMessage
 
   object GameInputMove {
@@ -49,6 +47,9 @@ object GameMessage {
         }
       } yield inputDecoded
   }
+
+  sealed trait GameOutputMessage extends Message
+
 
   case class GameServerMessage(message: String, action: String) extends GameOutputMessage
 
