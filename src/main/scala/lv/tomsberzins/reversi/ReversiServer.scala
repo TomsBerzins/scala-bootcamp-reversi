@@ -1,6 +1,6 @@
 package lv.tomsberzins.reversi
 
-import cats.effect.{ConcurrentEffect, ExitCode, Timer}
+import cats.effect.{Blocker, ConcurrentEffect, ContextShift, ExitCode, Timer}
 import cats.syntax.all._
 import fs2.concurrent.Topic
 import lv.tomsberzins.reversi.Messages.Websocket.{OutputMessage, ServerMessage}
@@ -8,21 +8,24 @@ import lv.tomsberzins.reversi.Repository._
 import org.http4s.blaze.server.BlazeServerBuilder
 import org.http4s.server.middleware.{CORS, Logger}
 
+import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
 
 
 object ReversiServer {
 
-  def stream[F[_]: ConcurrentEffect : Timer]: F[ExitCode] = {
+  def stream[F[_]: ConcurrentEffect : Timer : ContextShift]: F[ExitCode] = {
 
     for {
       playersRepository <- PlayerRepositoryInMemory[F]
       lobbyTopic <- Topic[F, OutputMessage](ServerMessage("Welcome")) //TODO try upgrading to fs2 v3
       lobbyPlayers <- PlayersInLobbyRepositoryInMem[F]
       gameManagerContainer <- GameManagerRepository[F]
+      blockingEc = Blocker.liftExecutorService(Executors.newFixedThreadPool(4))
       httpApp = (
         LobbyRoutes.lobbyRoutes[F](playersRepository, gameManagerContainer, lobbyTopic, lobbyPlayers) <+>
-        ReversiRoutes.reversiRoutes[F](gameManagerContainer, playersRepository)
+        ReversiRoutes.reversiRoutes[F](gameManagerContainer, playersRepository) <+>
+          StaticResourceRoutes.routes(blockingEc)
       ).orNotFound
 
       finalHttpApp = Logger.httpApp(true, true)(httpApp)
