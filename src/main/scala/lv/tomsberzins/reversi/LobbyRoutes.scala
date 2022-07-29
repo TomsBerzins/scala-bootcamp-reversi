@@ -44,7 +44,7 @@ object LobbyRoutes {
 
       case GET -> Root / "list-players-in-lobby" => Ok(playersInLobbyRepo.getAllPlayers.map(_.asJson))
 
-      case GET -> Root / "list-games" => Ok(gamesManagerContainer.getAllGames.map(_.asJson(Game.encodeGameList)))
+      case GET -> Root / "list-games" => Ok(gamesManagerContainer.getAllActiveGames.map(_.asJson(Game.encodeGameList)))
 
       case GET -> Root / "lobby" / playerId => {
 
@@ -61,7 +61,7 @@ object LobbyRoutes {
                 case CreateGameInput(name) => for {
                   game <- Game(name, player)
                   gameManagerCreated <- gamesManagerContainer.tryCreateGameManagerForGame(game)
-                  allGames <- gamesManagerContainer.getAllGames
+                  allGames <- gamesManagerContainer.getAllActiveGames
                   gameOutputMessage <- gameManagerCreated.fold(
                     error => LobbyError(error).asLeft.pure[F],
                     _ => {CreateGameOutput(player, game.playerToStoneMap, game.id, game.name, allGames).asRight.pure[F]}

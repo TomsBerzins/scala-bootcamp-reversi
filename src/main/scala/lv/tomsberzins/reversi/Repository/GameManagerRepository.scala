@@ -10,17 +10,17 @@ case class GameManagerRepository[F[_]: Concurrent](
     gameManagers: Ref[F, Map[GameId, GameManager[F]]]
 ) {
 
-  def getAllGames: F[List[Game]] = {
+  def getAllActiveGames: F[List[Game]] = {
     for {
       gms <- gameManagers.get
       listOfGames <- gms.values.map(_.getGame).toList.sequence
-    } yield listOfGames
+    } yield listOfGames.filter(_.gameStatus != GameEnded)
   }
 
   def tryCreateGameManagerForGame(
       createdGame: Game
   ): F[Either[String, GameManager[F]]] = {
-    getAllGames
+    getAllActiveGames
       .map(
         _.find(existingGame => existingGame.createdBy == createdGame.createdBy)
           .fold(Option(createdGame))(_ => None)
