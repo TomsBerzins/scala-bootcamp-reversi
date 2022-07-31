@@ -4,7 +4,6 @@ import cats.effect.{Blocker, ContextShift, Sync}
 import org.http4s._
 import org.http4s.dsl.Http4sDsl
 
-import java.io.File
 
 object StaticResourceRoutes{
 

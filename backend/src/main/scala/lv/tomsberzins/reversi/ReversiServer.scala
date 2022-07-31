@@ -18,7 +18,7 @@ object ReversiServer {
 
     for {
       playersRepository <- PlayerRepositoryInMemory[F]
-      lobbyTopic <- Topic[F, OutputMessage](ServerMessage("Welcome")) //TODO try upgrading to fs2 v3
+      lobbyTopic <- Topic[F, OutputMessage](ServerMessage("Welcome")) //TODO try upgrading to fs2 v3 so empty topic can be created
       lobbyPlayers <- PlayersInLobbyRepositoryInMem[F]
       gameManagerContainer <- GameManagerRepository[F]
       blockingEc = Blocker.liftExecutorService(Executors.newFixedThreadPool(4))

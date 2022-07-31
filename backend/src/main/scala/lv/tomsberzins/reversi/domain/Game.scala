@@ -104,8 +104,7 @@ object GameState {
     ): Board = {
       howToCalculateNextPositions match {
         case ::(howToCalculateNextPosition, rest) =>
-          val flippableCount =
-            getFlippableCount(board, toBePlaced, howToCalculateNextPosition)
+          val flippableCount = getFlippableCount(board, toBePlaced, howToCalculateNextPosition)
           if (flippableCount > 0) {
             val newBoard = flipStones(
               board,
