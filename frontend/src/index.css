@@ -1,0 +1,144 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.black-stone-icon {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  -webkit-border-radius: 25px;
+  -moz-border-radius: 25px;
+  border-radius: 25px;
+  background: black;
+}
+
+.white-stone-icon {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  -webkit-border-radius: 25px;
+  -moz-border-radius: 25px;
+  border-radius: 25px;
+  background: white;
+}
+
+.chat-message {
+  list-style: none;
+  margin: 3px;
+  background: whitesmoke;
+  border-radius: 10px;
+  padding-left: 10px;
+}
+
+.chat-server-message {
+  list-style: none;
+  margin: 3px;
+  background: gray;
+  padding-left: 10px;
+}
+
+.chat-container {
+  padding-left: 0px;
+}
+
+#root {
+  background-color: #F0EDEA;
+}
+
+.main-container {
+  background-color: white;
+    border: 3px #DADCDC;
+    height: 100vh;
+    border-left-style: solid;
+    border-right-style: solid;
+}
+
+.chat-outer {
+  border: 3px #DADCDC;
+  border-left-style: solid;
+  border-top-style: solid;
+  border-bottom-style: solid;
+  border-right-style: solid;
+
+}
+
+.games-outer {
+  border: 3px #DADCDC;
+  border-top-style: solid;
+  border-right-style: solid;
+  border-bottom-style: solid;
+
+}
+
+.board {
+  background-color: #080;
+  border: solid 1px #000;
+  box-shadow: 2px 2px 4px #222;
+}
+
+.board-tiles {
+  border-collapse: collapse;
+  margin:0px !important;
+}
+
+.tile {
+  height: 75px;
+  width: 75px;
+  margin: 7px !important;
+}
+
+
+
+.stone {
+  border-radius: 50%;
+  box-sizing: border-box;
+  box-shadow: 2px 2px 4px #222;
+  margin: auto;
+  transition: width .2s 0s linear, background-color 0s .2s linear;
+  
+}
+.stone-no-anim {
+  border-radius: 50%;
+  box-sizing: border-box;
+  box-shadow: 2px 2px 4px #222;
+  margin: auto;
+  
+}
+
+.black,
+.black-label,
+.black-bar {
+  background-color: #000;
+}
+
+.white,
+.white-label,
+.white-bar {
+  background-color: #fff;
+}
+
+table td, table th {
+  border: 1px solid black;
+}
+
+.score-board-tile {
+  justify-content: center!important;
+  display: flex;
+}
+
+.score-board-points {
+  align-items: center !important;
+  justify-content: center !important;
+  display: flex !important;
+  font-size: 45px;
+}
