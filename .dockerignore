@@ -1,0 +1,6 @@
+.gitignore
+.bsp/
+.idea/
+**/node_modules
+project/target
+frontend/build
