@@ -1,9 +1,10 @@
 package lv.tomsberzins.reversi
 
 import cats.effect.{Blocker, ContextShift, Sync}
+import cats.implicits.toSemigroupKOps
 import org.http4s._
 import org.http4s.dsl.Http4sDsl
-
+import org.http4s.server.staticcontent.resourceServiceBuilder
 
 object StaticResourceRoutes{
 
@@ -12,18 +13,12 @@ object StaticResourceRoutes{
     val dsl = new Http4sDsl[F] {}
     import dsl._
 
-    def static(file: String, blocker: Blocker, request: Request[F]): F[Response[F]] = {
-      println(file)
-      StaticFile.fromFile(new File("frontend/build/" + file), blocker, Some(request)).getOrElseF(NotFound())
+    val catchAllReturnIndex = HttpRoutes.of[F] {
+      case  _ => StaticFile.fromResource("webapp/index.html", blocker).getOrElseF(NotFound())
     }
 
-    HttpRoutes.of[F] {
+    val routesFromFiles = resourceServiceBuilder[F]("/webapp", blocker).toRoutes
 
-      case request @ GET -> Root / "static"/ "js"/ path=> static("static/js/" + path, blocker, request)
-
-      case request @ GET -> Root / "static"/ "css"/ path=> static("static/css/" + path, blocker, request)
-
-      case request @  _ => static("index.html", blocker, request)
-    }
+    routesFromFiles <+> catchAllReturnIndex
   }
 }

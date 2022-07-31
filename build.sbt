@@ -1,8 +1,13 @@
+import scala.sys.process.Process
+
 val Http4sVersion = "0.22.13"
 val CirceVersion = "0.14.2"
 val MunitVersion = "0.7.29"
 val LogbackVersion = "1.2.10"
 val MunitCatsEffectVersion = "1.0.7"
+
+lazy val buildFeTask = taskKey[Unit]("Builds production frontend and copies result to application build dir")
+lazy val frontendDir = settingKey[File]("Path to the frontend directory")
 
 lazy val root = (project in file("."))
   .settings(
@@ -15,6 +20,17 @@ lazy val root = (project in file("."))
       "-Ywarn-value-discard",
       "-Xfatal-warnings"
     ),
+    Compile / scalaSource := baseDirectory.value / "backend/src/main",
+    Test / scalaSource := baseDirectory.value / "backend/src/test",
+      frontendDir := baseDirectory.value / "frontend",
+    buildFeTask:= {
+      Process("npm install", frontendDir.value).!!
+      Process("npm run build", frontendDir.value).!!
+      println((Compile / classDirectory).value)
+      IO.copyDirectory(frontendDir.value / "build", (Compile / classDirectory).value / "webapp")
+    },
+    assembly := assembly.dependsOn(buildFeTask).value,
+    assembly / assemblyJarName := "reversi-app.jar",
     libraryDependencies ++= Seq(
       "org.http4s"      %% "http4s-blaze-server" %  Http4sVersion,
       "org.http4s"      %% "http4s-ember-server" % Http4sVersion,
