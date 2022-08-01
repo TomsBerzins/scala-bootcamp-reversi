@@ -6,7 +6,7 @@ import fs2.concurrent.Topic
 import lv.tomsberzins.reversi.Messages.Websocket.{OutputMessage, ServerMessage}
 import lv.tomsberzins.reversi.Repository._
 import org.http4s.blaze.server.BlazeServerBuilder
-import org.http4s.server.middleware.{CORS, Logger}
+import org.http4s.server.middleware.CORS
 
 import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
@@ -17,6 +17,7 @@ object ReversiServer {
   def stream[F[_]: ConcurrentEffect : Timer : ContextShift]: F[ExitCode] = {
 
     for {
+
       playersRepository <- PlayerRepositoryInMemory[F]
       lobbyTopic <- Topic[F, OutputMessage](ServerMessage("Welcome")) //TODO try upgrading to fs2 v3 so empty topic can be created
       lobbyPlayers <- PlayersInLobbyRepositoryInMem[F]
@@ -28,12 +29,10 @@ object ReversiServer {
           StaticResourceRoutes.routes(blockingEc)
       ).orNotFound
 
-      finalHttpApp = Logger.httpApp(true, true)(httpApp)
-
       exitCode <- BlazeServerBuilder[F](ExecutionContext.global)
         .bindHttp(8080, "0.0.0.0")
         .withHttpApp(
-          CORS.policy.withAllowOriginAll(finalHttpApp)
+          CORS.policy.withAllowOriginAll(httpApp)
         )
         .serve.compile.drain.as(ExitCode.Success)
     } yield exitCode
