@@ -1,13 +1,5 @@
-version: "3"
 services:
   app:
     build: .
     ports:
-      - "8080:8080"
-
-  haproxy:
-    image: haproxytech/haproxy-alpine:2.4
-    ports:
-      - "80:80"
-    volumes:
-      - "./docker-config:/usr/local/etc/haproxy:ro"
+      - "127.0.0.1:8080:8080"

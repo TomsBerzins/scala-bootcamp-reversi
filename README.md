@@ -29,11 +29,9 @@ docker compose up
 ```
 and open in your browser
 ```sh
-localhost:80
+localhost:8080
 ```
-this will create the following docker containers
-- Container running "fat jar" of the app containing production build
-- Reverse proxy container to map port 80 to 8080 (to avoid running jar with root privileges for port 80)
+this will create a container running "fat jar" of the app containing production build
 
 ##### Sbt assembly command
 This project uses [Sbt assembly plugin](https://github.com/sbt/sbt-assembly) to build "fat jar" of the project. `build.sbt` contains task that builds production frontend and copies result to build target, this task is executed during assembly, so you just need to run
