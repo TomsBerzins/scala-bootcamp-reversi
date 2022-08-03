@@ -27,7 +27,7 @@ object ReversiRoutes {
     import dsl._
     HttpRoutes.of[F] {
 
-      case GET -> Root / "game" / gameId / playerId =>
+      case GET -> Root / "ws" / "game" / gameId / playerId =>
         val toClientPipe: Pipe[F, GameOutputMessage, WebSocketFrame] = _.map(lobbyOutputMsg => {
           Text(lobbyOutputMsg.asJson.noSpaces)
         })

@@ -46,7 +46,7 @@ object LobbyRoutes {
 
       case GET -> Root / "list-games" => Ok(gamesManagerContainer.getAllActiveGames.map(_.asJson(Game.encodeGameList)))
 
-      case GET -> Root / "lobby" / playerId => {
+      case GET -> Root / "ws" / "lobby" / playerId => {
 
         val toClientPipe: Pipe[F, OutputMessage, WebSocketFrame] = _.map(lobbyOutputMsg => {
           Text(lobbyOutputMsg.asJson(OutputMessage.encodeLobbyOutputMessage).noSpaces)

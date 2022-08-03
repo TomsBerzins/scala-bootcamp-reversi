@@ -1,3 +1,3 @@
 export const getWsBasePath = () => {
-   return 'ws://'+ window.location.hostname +':8080';
+   return 'ws://'+ window.location.hostname+ ":" + window.location.port  +'/ws';
 };
