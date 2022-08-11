@@ -3,7 +3,7 @@ package lv.tomsberzins.reversi
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxOptionId}
-import fs2.concurrent.InspectableQueue
+import fs2.concurrent.Queue
 import lv.tomsberzins.reversi.Messages.Websocket.GameMessage._
 import lv.tomsberzins.reversi.domain._
 import org.mockito.ArgumentMatchers.any
@@ -133,7 +133,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
 
     "Player1 connects and publishes game state" in {
       for {
-          emptyQ <- InspectableQueue.unbounded[IO, GameOutputMessage]
+          emptyQ <- Queue.unbounded[IO, GameOutputMessage]
           gm <- gmWithTwoPlayersRegistered
           _ <- gm.publishGameStateMessage(gameOwner.id)
           data <- gm.data.get
@@ -188,7 +188,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
     when(game.isPlayerRegistered(gameOwner)) thenReturn(true)
 
     for {
-      emptyQ <- InspectableQueue.unbounded[IO, GameOutputMessage]
+      emptyQ <- Queue.unbounded[IO, GameOutputMessage]
       gm <- GameManager[IO](game)
       _ <- gm.registerPlayerForGame(gameOwner)
       _ <- gm.publishGameStateMessage(gameOwner.id)
@@ -210,7 +210,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
 
       for {
         game <- Game[IO]("someName", gameOwner)
-        emptyQ <- InspectableQueue.unbounded[IO, GameOutputMessage]
+        emptyQ <- Queue.unbounded[IO, GameOutputMessage]
         gm <- GameManager[IO](game)
         _ <- gm.registerPlayerForGame(gameOwner)
         _ <- gm.handlePlayerInput(Invalid("some-command"), gameOwner)
@@ -233,7 +233,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
       when(otherPlayer.id) thenReturn("otherplayer-id")
 
       for {
-        emptyQ <- InspectableQueue.unbounded[IO, GameOutputMessage]
+        emptyQ <- Queue.unbounded[IO, GameOutputMessage]
         game <- Game[IO]("someName", gameOwner)
         gm <- GameManager[IO](game)
         _ <- gm.registerPlayerForGame(gameOwner)
@@ -260,7 +260,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
 
       verify(game, never()).checkIfGameEnded(any[Stone])
       for {
-        emptyQ <- InspectableQueue.unbounded[IO, GameOutputMessage]
+        emptyQ <- Queue.unbounded[IO, GameOutputMessage]
         gm <- GameManager[IO](game)
         _ <- gm.registerPlayerForGame(gameOwner)
         _ <- gm.handlePlayerInput(GameInputMove(Position(0,0)), gameOwner)
@@ -286,7 +286,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
 
       verify(game, never()).checkIfGameEnded(any[Stone])
       for {
-        emptyQ <- InspectableQueue.unbounded[IO, GameOutputMessage]
+        emptyQ <- Queue.unbounded[IO, GameOutputMessage]
         gm <- GameManager[IO](game)
         _ <- gm.registerPlayerForGame(gameOwner)
         _ <- gm.registerPlayerForGame(otherPlayer)
@@ -318,7 +318,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
 
       verify(game, never()).checkIfGameEnded(any[Stone])
       for {
-        emptyQ <- InspectableQueue.unbounded[IO, GameOutputMessage]
+        emptyQ <- Queue.unbounded[IO, GameOutputMessage]
         gm <- GameManager[IO](game)
         _ <- gm.registerPlayerForGame(gameOwner)
         _ <- gm.registerPlayerForGame(otherPlayer)
@@ -353,7 +353,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
       when(game.gameStatus) thenReturn(GameInProgress)
 
       for {
-        emptyQ <- InspectableQueue.unbounded[IO, GameOutputMessage]
+        emptyQ <- Queue.unbounded[IO, GameOutputMessage]
         gm <- GameManager[IO](game)
         _ <- gm.registerPlayerForGame(gameOwner)
         _ <- gm.registerPlayerForGame(otherPlayer)
@@ -387,7 +387,7 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
       when(game.gameStatus) thenReturn(GameInProgress)
 
       for {
-        emptyQ <- InspectableQueue.unbounded[IO, GameOutputMessage]
+        emptyQ <- Queue.unbounded[IO, GameOutputMessage]
         gm <- GameManager[IO](game)
         _ <- gm.registerPlayerForGame(gameOwner)
         _ <- gm.registerPlayerForGame(otherPlayer)

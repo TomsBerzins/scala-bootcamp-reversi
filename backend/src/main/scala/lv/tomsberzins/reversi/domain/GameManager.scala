@@ -1,19 +1,16 @@
 package lv.tomsberzins.reversi.domain
 
-import cats.Applicative
 import cats.effect.Concurrent
 import cats.effect.concurrent.Ref
 import cats.implicits._
-import fs2.concurrent.InspectableQueue
+import fs2.concurrent.{Queue}
 import lv.tomsberzins.reversi.Messages.Websocket.GameMessage._
 import lv.tomsberzins.reversi.domain.GameManager.PlayerId
 
 /** Each active game is represented by a game manager which is exposes api to interact with the game
   * and players (via map of queues, similar to how topic is implemented but without the 1 message retention limit)
   */
-case class GameManager[F[_]: Concurrent](
-    data: Ref[F, (Map[PlayerId, InspectableQueue[F, GameOutputMessage]], Game)]
-) {
+case class GameManager[F[_]: Concurrent](data: Ref[F, (Map[PlayerId, Queue[F, GameOutputMessage]], Game)]) {
   private def bothPlayersOnline(): F[Boolean] = data.get.map(_._1.size == 2)
 
   def getGame: F[Game] = data.get._2F
@@ -36,14 +33,14 @@ case class GameManager[F[_]: Concurrent](
 
   private def removeQueueForPlayer(
       playerId: PlayerId
-  ): F[(Map[PlayerId, InspectableQueue[F, GameOutputMessage]], Game)] = {
+  ): F[(Map[PlayerId, Queue[F, GameOutputMessage]], Game)] = {
     data.updateAndGet(pair => {
       (pair._1.removed(playerId), pair._2)
     })
   }
 
   def publishToBothPlayers(msg: GameOutputMessage): F[Unit] = {
-    def publishToPlayers(playerQueues: List[InspectableQueue[F, GameOutputMessage]], msg: GameOutputMessage): F[Unit] = {
+    def publishToPlayers(playerQueues: List[Queue[F, GameOutputMessage]], msg: GameOutputMessage): F[Unit] = {
       playerQueues match {
         case ::(queue, next) =>
           queue.enqueue1(msg) *> publishToPlayers(next, msg)
@@ -56,18 +53,7 @@ case class GameManager[F[_]: Concurrent](
     })
   }
 
-  def publishToSpecificPlayer(
-      playerId: PlayerId,
-      msg: GameOutputMessage
-  ): F[Unit] = {
-    for {
-      cData <- data.get
-      _ <- cData._1.get(playerId) match {
-        case Some(q) => q.enqueue1(msg)
-        case _       => ().pure[F]
-      }
-    } yield ()
-  }
+  def publishToSpecificPlayer(playerId: PlayerId, msg: GameOutputMessage): F[Unit] = data.get.flatMap(_._1.get(playerId).traverse(_.enqueue1(msg))).void
 
   def handlePlayerInput(gameInputMessage: GameInputMessage, player: Player): F[Unit] = {
     gameInputMessage match {
@@ -78,11 +64,7 @@ case class GameManager[F[_]: Concurrent](
             case GameEnded      => "Game has ended".asLeft
             case GameInProgress => game.asRight
           }
-          val playerStoneFound = game.getPlayerStone(player.id).toRight("Player not found")
-
-          Applicative[Either[String, *]].map2(gameInProgress, playerStoneFound)(
-            (_, stone) => stone
-          )
+          gameInProgress *> game.getPlayerStone(player.id).toRight("Player not found")
         })
 
         moveNotPossibleOrStone.flatMap( _.fold(
@@ -101,11 +83,7 @@ case class GameManager[F[_]: Concurrent](
               })
               .flatMap(
                 _.fold(
-                  invalidMoveError =>
-                    publishToSpecificPlayer(
-                      player.id,
-                      GameServerMessage(invalidMoveError, "invalid-move")
-                    ),
+                  invalidMoveError => publishToSpecificPlayer(player.id, GameServerMessage(invalidMoveError, "invalid-move")),
                   game => {
                     if (game.checkIfGameEnded(stone.flip())) {
                       setGameEnded() *> publishToBothPlayers(PlayerMoved(player, game)) *> publishToBothPlayers(GameServerMessage("Game ended", "game-end"))
@@ -147,14 +125,14 @@ case class GameManager[F[_]: Concurrent](
 
   def registerPlayerForGame(
       player: Player
-  ): F[Either[String, (InspectableQueue[F, GameOutputMessage], Game)]] = {
+  ): F[Either[String, (Queue[F, GameOutputMessage], Game)]] = {
     for {
-      newQueue <- InspectableQueue.unbounded[F, GameOutputMessage]
+      newQueue <- Queue.unbounded[F, GameOutputMessage]
       queueAndGame <- data.modify(pair => {
         val game = pair._2
         val queues = pair._1
         if (game.isFull && !game.isPlayerRegistered(player)) {
-          (pair, "Game is full".asLeft[(InspectableQueue[F, GameOutputMessage], Game)])
+          (pair, "Game is full".asLeft[(Queue[F, GameOutputMessage], Game)])
         } else if (game.isPlayerRegistered(player)) {
           val addedQueue = queues.updated(player.id, newQueue)
           val updatedPair = (addedQueue, game)
@@ -178,7 +156,7 @@ object GameManager {
 
   def apply[F[_]: Concurrent](game: Game): F[GameManager[F]] = {
     Ref
-      .of[F, (Map[PlayerId, InspectableQueue[F, GameOutputMessage]], Game)](
+      .of[F, (Map[PlayerId, Queue[F, GameOutputMessage]], Game)](
         (Map.empty, game)
       )
       .map(GameManager(_))
