@@ -53,12 +53,6 @@ case class GameManagerRepository[F[_]: Concurrent](
         )
       )
   }
-
-  def deleteGame(gameId: GameId): F[Unit] = {
-    gameManagers.update(gameManagers => {
-      gameManagers.removed(gameId)
-    })
-  }
 }
 
 object GameManagerRepository {
