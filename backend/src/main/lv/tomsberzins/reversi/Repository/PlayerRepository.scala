@@ -13,11 +13,7 @@ trait PlayerRepository[F[_]] {
 
 final class PlayerRepositoryInMemory[F[_]: Monad] (playersInMem: Ref[F, Map[String, Player]]) extends PlayerRepository[F] {
 
-  override def getPlayerById(id: String): F[Option[Player]] = {
-    for {
-      players <- playersInMem.get
-    } yield players.get(id)
-  }
+  override def getPlayerById(id: String): F[Option[Player]] = playersInMem.get.map(_.get(id))
 
   override def createPlayer(player: Player): F[Player] = {
     playersInMem.modify(existingPlayers => {
