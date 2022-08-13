@@ -3,7 +3,7 @@ package lv.tomsberzins.reversi.domain
 import cats.effect.Concurrent
 import cats.effect.concurrent.Ref
 import cats.implicits._
-import fs2.concurrent.{Queue}
+import fs2.concurrent.Queue
 import lv.tomsberzins.reversi.Messages.Websocket.GameMessage._
 import lv.tomsberzins.reversi.domain.GameManager.PlayerId
 
