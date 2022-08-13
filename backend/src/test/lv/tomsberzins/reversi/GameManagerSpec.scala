@@ -77,28 +77,33 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
     "Publish message to both players" in {
       val gameOwner = mock[Player]
       val otherPlayer = mock[Player]
-      val gameOutputMessage = mock[GameOutputMessage]
+      val gameOutputMessage = GameServerMessage("some-message", "some-action")
 
       when(otherPlayer.id).thenReturn("other-player-id")
 
-      for {
+     for {
         game <- Game[IO]("someName", gameOwner)
         gm <- GameManager[IO](game)
         _ <- gm.registerPlayerForGame(gameOwner)
         _ <- gm.registerPlayerForGame(otherPlayer)
         _ <- gm.publishToBothPlayers(gameOutputMessage)
         data <- gm.data.get
-        ownerQueueSize <- data._1(gameOwner.id).getSize
-        otherPlayerQueueSize <- data._1(otherPlayer.id).getSize
-      } yield {
-        assert(ownerQueueSize == 1)
-        assert(otherPlayerQueueSize == 1)
-      }
+        ownerMessage <- data._1(gameOwner.id).dequeue1
+        otherPlayerMessage <- data._1(otherPlayer.id).dequeue1
+        ownerNextMessage <- data._1(gameOwner.id).tryDequeue1
+        otherPlayerNextMessage <- data._1(otherPlayer.id).tryDequeue1
+
+     } yield {
+        assert(ownerMessage == gameOutputMessage)
+        assert(otherPlayerMessage == gameOutputMessage)
+        assert(ownerNextMessage.isEmpty)
+        assert(otherPlayerNextMessage.isEmpty)
+     }
     }
     "Publish message to specific player" in {
       val gameOwner = mock[Player]
       val otherPlayer = mock[Player]
-      val gameOutputMessage = mock[GameOutputMessage]
+      val gameOutputMessage = GameServerMessage("some-message", "some-action")
 
       when(otherPlayer.id).thenReturn("other-player-id")
 
@@ -109,11 +114,13 @@ class GameManagerSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers with 
         _ <- gm.registerPlayerForGame(otherPlayer)
         _ <- gm.publishToSpecificPlayer(otherPlayer.id, gameOutputMessage)
         data <- gm.data.get
-        ownerQueueSize <- data._1(gameOwner.id).getSize
-        otherPlayerQueueSize <- data._1(otherPlayer.id).getSize
+        otherPlayerMessage <- data._1(otherPlayer.id).dequeue1
+        ownerNextMessage <- data._1(gameOwner.id).tryDequeue1
+        otherPlayerNextMessage <- data._1(otherPlayer.id).tryDequeue1
       } yield {
-        assert(ownerQueueSize == 0)
-        assert(otherPlayerQueueSize == 1)
+        assert(otherPlayerMessage == gameOutputMessage)
+        assert(ownerNextMessage.isEmpty)
+        assert(otherPlayerNextMessage.isEmpty)
       }
     }
   }
