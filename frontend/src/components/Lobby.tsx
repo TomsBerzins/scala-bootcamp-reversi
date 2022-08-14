@@ -74,7 +74,7 @@ const Lobby = () => {
           break;
         }
         default:
-          console.log("ERROR")
+          break;
 
       }
     }

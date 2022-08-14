@@ -143,7 +143,6 @@ export default function Game() {
     useEffect(() => {
         if (lastMessage !== null) {
             let msg = JSON.parse(lastMessage.data);
-            console.log(msg);
             switch (msg.action) {
                 case PlayerJoinedGame.action:
                     {
@@ -224,9 +223,7 @@ export default function Game() {
                     break;
                 }
                 default:
-                    console.log("ERRRoR");
-                    console.log(msg);
-                    console.log("ERROR")
+                    break;
 
             }
         }
