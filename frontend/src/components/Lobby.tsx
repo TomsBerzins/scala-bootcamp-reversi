@@ -51,7 +51,7 @@ const Lobby = () => {
           {
             let gameCreatedMsg = deserialize(CreateGameOutput, JSON.stringify(msg));
       
-            let gameCreatedNotification = new GeneralMessage(gameCreatedMsg.createdGame.owner.name + "created game")
+            let gameCreatedNotification = new GeneralMessage(gameCreatedMsg.createdGame.owner.name + " created game")
 
             setGames(gameCreatedMsg.gameList)
             setMessageHistory((prev) => prev.concat(gameCreatedNotification));
@@ -121,11 +121,11 @@ const Lobby = () => {
           <Row style={{ maxHeight: '25%' }}>
             <Col>
               <div className="text-center">
-                Players in lobby
+                <h4>Players in lobby</h4>
               </div>
               <div>
                 {playersInLobby.map((player) => (
-                  <Badge key={player.id} pill bg="info" className="m-1">
+                  <Badge key={player.id} bg="info" className="m-1" style={{fontSize: '1.25em', padding: '15px'}}>
                     {player.name}
                   </Badge>
                 ))}
@@ -135,7 +135,7 @@ const Lobby = () => {
           <Row>
             <Col>
               <div className="text-center">
-                Games list
+                <h4>Games list</h4>
               </div>
             </Col>
           </Row>
