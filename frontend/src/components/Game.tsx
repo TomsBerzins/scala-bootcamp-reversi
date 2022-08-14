@@ -8,13 +8,13 @@ import GameNotification from "./GameNotification";
 import gameNotificationObject from "../domain/Game/GameNotification"
 import { plainToInstance } from "class-transformer";
 import Player from "../domain/Player";
-import {Tile as TileObject } from "../domain/Game/GameBoard";
+import { Tile as TileObject } from "../domain/Game/GameBoard";
 import GameBoard, { Position } from "../domain/Game/GameBoard";
 import Tile from "./Tile";
 import { PlayerStoneMap } from "../domain/Game/Game";
 import Alert from 'react-bootstrap/Alert';
 import Modal from 'react-bootstrap/Modal';
-import {GameStarted, InvalidMove, WaitingForOpponent, GameEnded} from '../domain/GameMessages/GeneralMessages';
+import { GameStarted, InvalidMove, WaitingForOpponent, GameEnded } from '../domain/GameMessages/GeneralMessages';
 import PlayerJoinedGame from "../domain/GameMessages/PlayerJoinedGame";
 import PlayerNextToMove from "../domain/GameMessages/PlayerNextToMove";
 import PlayerMoved from "../domain/GameMessages/PlayerMoved";
@@ -52,7 +52,7 @@ export default function Game() {
     const [showError, setShowError] = useState(false);
     const [gameEnded, setGameEnded] = useState(false);
 
-    const wsUrl =  `${getWsBasePath()}/game/${gameParams.id}/${player.id}`
+    const wsUrl = `${getWsBasePath()}/game/${gameParams.id}/${player.id}`
     const { sendJsonMessage, lastMessage } = useWebSocket(wsUrl, { onError: (e) => setShowError(true) });
 
 
@@ -121,7 +121,7 @@ export default function Game() {
         } else if (playerToMove !== null) {
             if (playerToMove?.[0].id === player.id) {
                 currentMoveText = "It's your move!"
-                currentMoveAlertVariant="success"
+                currentMoveAlertVariant = "success"
             } else {
                 currentMoveText = `It's your opponents, ${playerToMove?.[0].name} move`
             }
@@ -160,7 +160,7 @@ export default function Game() {
                         let notification = new gameNotificationObject(`Player ${playerLeftGameMsg.player.name} left!`, "info");
                         setNotifications((prev) => prev.concat(notification));
                         break;
-                    }    
+                    }
                 case GameStarted.action:
                 case InvalidMove.action:
                     {
@@ -260,32 +260,31 @@ export default function Game() {
                         </Col>
                     </Row>
                     <Row>
-                        <Col xs={{offset: 3, span: 6}}>
-                        {renderCurrentMoveInformation()}
+                        <Col xs={{ offset: 3, span: 6 }}>
+                            {renderCurrentMoveInformation()}
                         </Col>
                     </Row>
-                    <div >
-                        <table className="board-tiles board" style={{ borderColor: "#000" }} >
-                            <tbody>
-                                {[0, 1, 2, 3, 4, 5, 6, 7].map((y) => (
-                                    <tr key={y}>
-                                        {[0, 1, 2, 3, 4, 5, 6, 7].map((x) => (
-                                            <td key={x}>{renderTile(x, y)}</td>
-                                        ))}
-                                    </tr>)
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Row>
+                        <Col xs={{ offset: 1, span: 11 }}>
+                            <table className="board-tiles board" style={{ borderColor: "#000" }} >
+                                <tbody>
+                                    {[0, 1, 2, 3, 4, 5, 6, 7].map((y) => (
+                                        <tr key={y}>
+                                            {[0, 1, 2, 3, 4, 5, 6, 7].map((x) => (
+                                                <td key={x}>{renderTile(x, y)}</td>
+                                            ))}
+                                        </tr>)
+                                    )}
+                                </tbody>
+                            </table>
+                        </Col>
+                    </Row>
                 </Col>
                 <Col xs={12} lg={3}>
                     {notifications.map((notification, idx) => (
                         <GameNotification key={idx} message={notification.message}></GameNotification>
                     ))}
                 </Col>
-            </Row>
-            <Row>
-                a
             </Row>
         </Container>
     )
