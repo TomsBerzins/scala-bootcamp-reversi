@@ -22,8 +22,5 @@ class PlayersInLobbyRepositoryInMem[F[_]](players: Ref[F, Map[String, Player]]) 
 }
 
 object PlayersInLobbyRepositoryInMem {
-
-  def apply[F[_] : Concurrent]: F[PlayersInLobbyRepository[F]] = {
-    Ref.of[F, Map[String, Player]](Map.empty).map(new PlayersInLobbyRepositoryInMem(_))
-  }
+  def apply[F[_] : Concurrent]: F[PlayersInLobbyRepository[F]] = Ref.of[F, Map[String, Player]](Map.empty).map(new PlayersInLobbyRepositoryInMem(_))
 }

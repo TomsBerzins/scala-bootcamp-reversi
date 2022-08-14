@@ -154,11 +154,8 @@ object GameState {
           "Invalid move, no stones flipped".asLeft[GameState]
         } else {
           // if move is valid place the stone
-          val withStonePlaced =
-            newBoard.updated(toBePlaced.position, stoneBeingPlaced.some)
-          gameState
-            .copy(withStonePlaced, stoneBeingPlaced.flip())
-            .asRight[String]
+          val withStonePlaced = newBoard.updated(toBePlaced.position, stoneBeingPlaced.some)
+          gameState.copy(withStonePlaced, stoneBeingPlaced.flip()).asRight[String]
         }
       }
     } else {
@@ -166,9 +163,7 @@ object GameState {
     }
   }
 
-  def isPositionInBounds(position: Position): Boolean = {
-    position.y >= 0 && position.y <= 7 && position.x >= 0 && position.x <= 7
-  }
+  def isPositionInBounds(position: Position): Boolean = position.y >= 0 && position.y <= 7 && position.x >= 0 && position.x <= 7
 
   def isPositionFree(position: Position, gameState: GameState): Boolean = {
     gameState.board.get(position) match {
@@ -226,17 +221,11 @@ case class Game private (
     this.playerToStoneMap.find(_._2 == nextStoneToMove)._1F
   }
 
-  def getPlayerStone(playerId: PlayerId): Option[Stone] = {
-    this.playerToStoneMap.find(_._1.id == playerId)._2F
-  }
+  def getPlayerStone(playerId: PlayerId): Option[Stone] = this.playerToStoneMap.find(_._1.id == playerId)._2F
 
-  def isPlayerRegistered(player: Player): Boolean = {
-    playerToStoneMap.isDefinedAt(player)
-  }
+  def isPlayerRegistered(player: Player): Boolean = playerToStoneMap.isDefinedAt(player)
 
-  def isFull: Boolean = {
-    playerToStoneMap.size >= 2
-  }
+  def isFull: Boolean = playerToStoneMap.size >= 2
 
   def move(stone: Stone, position: Position): Either[String, Game] = {
     for {
@@ -268,9 +257,7 @@ case class Game private (
   }
 }
 object Game {
-  implicit val encodeFoo: Encoder[Game] = {
-    Encoder.forProduct2("id", "name")(game => (game.id, game.name))
-  }
+  implicit val encodeFoo: Encoder[Game] = Encoder.forProduct2("id", "name")(game => (game.id, game.name))
 
   implicit val encodePlayerToStoneMap: Encoder[Map[Player, Stone]] =
     (a: Map[Player, Stone]) => {

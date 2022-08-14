@@ -6,10 +6,7 @@ import cats.implicits._
 import lv.tomsberzins.reversi.domain.GameManager.GameId
 import lv.tomsberzins.reversi.domain.{Game, GameEnded, GameManager}
 
-case class GameManagerRepository[F[_]: Concurrent](
-    gameManagers: Ref[F, Map[GameId, GameManager[F]]]
-) {
-
+case class GameManagerRepository[F[_]: Concurrent](gameManagers: Ref[F, Map[GameId, GameManager[F]]]) {
   def getAllActiveGames: F[List[Game]] = {
     for {
       gms <- gameManagers.get

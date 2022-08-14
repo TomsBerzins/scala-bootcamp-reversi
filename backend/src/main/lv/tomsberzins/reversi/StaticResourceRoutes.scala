@@ -6,15 +6,15 @@ import org.http4s._
 import org.http4s.dsl.Http4sDsl
 import org.http4s.server.staticcontent.resourceServiceBuilder
 
-object StaticResourceRoutes{
+object StaticResourceRoutes {
 
-  def routes[F[_] : ContextShift : Sync](blocker: Blocker): HttpRoutes[F] = {
+  def routes[F[_]: ContextShift: Sync](blocker: Blocker): HttpRoutes[F] = {
 
     val dsl = new Http4sDsl[F] {}
     import dsl._
 
-    val catchAllReturnIndex = HttpRoutes.of[F] {
-      case  _ => StaticFile.fromResource("webapp/index.html", blocker).getOrElseF(NotFound())
+    val catchAllReturnIndex = HttpRoutes.of[F] { case _ =>
+      StaticFile.fromResource("webapp/index.html", blocker).getOrElseF(NotFound())
     }
 
     val routesFromFiles = resourceServiceBuilder[F]("/webapp", blocker).toRoutes

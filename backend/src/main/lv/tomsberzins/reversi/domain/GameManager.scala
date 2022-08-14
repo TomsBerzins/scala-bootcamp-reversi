@@ -33,24 +33,17 @@ case class GameManager[F[_]: Concurrent](data: Ref[F, (Map[PlayerId, Queue[F, Ga
 
   private def removeQueueForPlayer(
       playerId: PlayerId
-  ): F[(Map[PlayerId, Queue[F, GameOutputMessage]], Game)] = {
-    data.updateAndGet(pair => {
-      (pair._1.removed(playerId), pair._2)
-    })
-  }
+  ): F[(Map[PlayerId, Queue[F, GameOutputMessage]], Game)] = data.updateAndGet(pair => (pair._1.removed(playerId), pair._2))
 
   def publishToBothPlayers(msg: GameOutputMessage): F[Unit] = {
     def publishToPlayers(playerQueues: List[Queue[F, GameOutputMessage]], msg: GameOutputMessage): F[Unit] = {
       playerQueues match {
-        case ::(queue, next) =>
-          queue.enqueue1(msg) *> publishToPlayers(next, msg)
+        case ::(queue, next) => queue.enqueue1(msg) *> publishToPlayers(next, msg)
         case Nil => ().pure[F]
       }
     }
 
-    data.get.flatMap(data => {
-      publishToPlayers(data._1.values.toList, msg)
-    })
+    data.get.flatMap(data => publishToPlayers(data._1.values.toList, msg))
   }
 
   def publishToSpecificPlayer(playerId: PlayerId, msg: GameOutputMessage): F[Unit] = data.get.flatMap(_._1.get(playerId).traverse(_.enqueue1(msg))).void
@@ -123,9 +116,7 @@ case class GameManager[F[_]: Concurrent](data: Ref[F, (Map[PlayerId, Queue[F, Ga
     } yield ()
   }
 
-  def registerPlayerForGame(
-      player: Player
-  ): F[Either[String, (Queue[F, GameOutputMessage], Game)]] = {
+  def registerPlayerForGame(player: Player): F[Either[String, (Queue[F, GameOutputMessage], Game)]] = {
     for {
       newQueue <- Queue.unbounded[F, GameOutputMessage]
       queueAndGame <- data.modify(pair => {
@@ -150,15 +141,10 @@ case class GameManager[F[_]: Concurrent](data: Ref[F, (Map[PlayerId, Queue[F, Ga
 }
 
 object GameManager {
-
   type GameId = String
   type PlayerId = String
 
   def apply[F[_]: Concurrent](game: Game): F[GameManager[F]] = {
-    Ref
-      .of[F, (Map[PlayerId, Queue[F, GameOutputMessage]], Game)](
-        (Map.empty, game)
-      )
-      .map(GameManager(_))
+    Ref.of[F, (Map[PlayerId, Queue[F, GameOutputMessage]], Game)]((Map.empty, game)).map(GameManager(_))
   }
 }
