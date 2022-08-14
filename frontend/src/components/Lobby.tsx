@@ -28,7 +28,7 @@ const Lobby = () => {
   const { player } = useContext(playerContext)
   const wsUrl =  `${getWsBasePath()}/lobby/${player.id}`
 
-  const { sendJsonMessage, lastMessage } = useWebSocket(wsUrl);
+  const { sendJsonMessage, lastMessage, readyState} = useWebSocket(wsUrl);
   const [messageHistory, setMessageHistory] = useState<(ChatOutputMessage | GeneralMessage)[]>([]);
   const [games, setGames] = useState<Game[]>([]);
   const [playersInLobby, setPlayersInLobby] = useState<Player[]>([]);
@@ -81,15 +81,17 @@ const Lobby = () => {
   }, [lastMessage]);
 
   useEffect(() => {
-    fetch("/list-players-in-lobby")
+    if (readyState === 1) {
+      fetch("/list-players-in-lobby")
       .then(res => res.json())
       .then(
         (result) => {
           setPlayersInLobby(deserializeArray(Player, JSON.stringify(result)))
         }
       )
-  },
-    [])
+    }
+ 
+  },[readyState])
 
   useEffect(() => {
     fetch("/list-games")
